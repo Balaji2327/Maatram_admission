@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "/backend";
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const API_BASE_URL = rawApiUrl.replace(/\/+$/, "").replace(/\/api$/, "");
 
 // Render stored application media through this portal, including URLs saved by older backends.

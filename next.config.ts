@@ -2,9 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    const publicApi = process.env.NEXT_PUBLIC_API_URL || "";
-    const apiOrigin = /^https?:\/\//.test(publicApi) ? publicApi.replace(/\/+$/, "").replace(/\/api$/, "") : "";
-    const backend = (process.env.BACKEND_URL || apiOrigin || "http://localhost:5000").replace(/\/+$/, "");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    const backend = apiUrl.replace(/\/+$/, "").replace(/\/api$/, "");
     return ["auth", "application", "admin/media/applications"].map(section => ({
       source: `/backend/${section}/:path*`,
       destination: `${backend}/${section}/:path*`,
