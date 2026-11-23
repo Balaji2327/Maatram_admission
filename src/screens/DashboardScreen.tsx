@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import SignOutModal from "../components/SignOutModal";
 import CompleteApplicationModal from "../components/CompleteApplicationModal";
 import StudentSidebar, { StudentNavTab } from "../components/StudentSidebar";
-import { applicationApi, authApi, getAuthToken, getStoredUser } from "../lib/api";
+import { applicationMediaUrl, applicationApi, authApi, getAuthToken, getStoredUser } from "../lib/api";
 import {
   UserIcon,
   AcademicCapIcon,
@@ -1123,7 +1123,7 @@ export default function DashboardScreen() {
         onSignOutClick={() => setShowSignOutModal(true)}
         applicationNumber={formData.applicationNumber}
         studentName={formData.fullName}
-        studentPhoto={formData.studentPhoto}
+        studentPhoto={applicationMediaUrl(formData.studentPhoto)}
       />
 
       {/* 2. Main Content Area */}
@@ -1724,7 +1724,7 @@ export default function DashboardScreen() {
                     <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#F7BC0F] to-amber-300 text-slate-950 font-heading font-black text-2xl flex items-center justify-center shadow-md border-2 border-amber-300 overflow-hidden shrink-0">
                       {formData.studentPhoto ? (
                         <img
-                          src={formData.studentPhoto}
+                          src={applicationMediaUrl(formData.studentPhoto)}
                           alt={formData.fullName || "Student Profile"}
                           className="w-full h-full object-cover"
                         />
@@ -2547,7 +2547,7 @@ export default function DashboardScreen() {
                           <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                             {doc.key === "studentPhoto" ? (
                               <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-200">
-                                <img src={doc.value} alt={doc.label} className="w-full h-full object-cover" />
+                                <img src={applicationMediaUrl(doc.value)} alt={doc.label} className="w-full h-full object-cover" />
                               </div>
                             ) : (
                               <DocumentTextIcon className="w-5 h-5 text-emerald-600" />
@@ -5179,7 +5179,7 @@ export default function DashboardScreen() {
               <div className="flex items-center gap-2">
                 {previewDocModal.url && (
                   <a
-                    href={previewDocModal.url}
+                    href={applicationMediaUrl(previewDocModal.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl transition"
@@ -5201,13 +5201,13 @@ export default function DashboardScreen() {
               {previewDocModal.url ? (
                 previewDocModal.url.startsWith("data:image/") || previewDocModal.url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) ? (
                   <img
-                    src={previewDocModal.url}
+                    src={applicationMediaUrl(previewDocModal.url)}
                     alt={previewDocModal.title}
                     className="max-h-[70vh] w-auto object-contain rounded-xl shadow-xs border border-slate-200"
                   />
                 ) : (
                   <iframe
-                    src={previewDocModal.url}
+                    src={applicationMediaUrl(previewDocModal.url)}
                     title={previewDocModal.title}
                     className="w-full h-[65vh] rounded-xl border border-slate-200 bg-white"
                   />

@@ -3,6 +3,13 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "ax
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "/backend";
 const API_BASE_URL = rawApiUrl.replace(/\/+$/, "").replace(/\/api$/, "");
 
+// Render stored application media through this portal, including URLs saved by older backends.
+export function applicationMediaUrl(value: string): string {
+  const match = value.match(/^(?:https?:\/\/[^/?#]+)?(?:\/backend)?\/admin\/media\/(applications\/.+)$/i);
+  if (match) return "/backend/admin/media/" + match[1];
+  return value.startsWith("applications/") ? "/backend/admin/media/" + value : value;
+}
+
 // Token & User storage helpers
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
