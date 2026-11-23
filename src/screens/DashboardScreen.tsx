@@ -1206,7 +1206,7 @@ export default function DashboardScreen() {
                         ? "Physical Verification Completed"
                         : applicationStatusData.status === "video_interview_done" || applicationStatusData.status === "shortlisted"
                           ? "Video Interview Completed"
-                          : applicationStatusData.status === "selected" || applicationStatusData.status === "scholarship_awarded"
+                          : applicationStatusData.status === "selected"
                             ? "Support Awarded"
                             : applicationStatusData.status === "rejected"
                               ? "Application Rejected"
@@ -1354,7 +1354,7 @@ export default function DashboardScreen() {
                     direct_interview_in_progress: 4,
                     direct_interview_done: 5,
                     selected: 6,
-                    scholarship_awarded: 6,
+
                     rejected: -1,
                   };
 
@@ -1403,7 +1403,7 @@ export default function DashboardScreen() {
                     },
                     {
                       id: 6,
-                      title: "Final Selection & 100% Free Scholarship Awarded",
+                      title: "Final Selection and Admission",
                       desc: "Approved by Board of Trustees. Official 100% free higher education sponsorship admission letter granted (College tuition, hostel & books fully funded).",
                       completed: currentLevel >= 6,
                       isCurrentWaiting: currentLevel === 5,
@@ -2539,7 +2539,7 @@ export default function DashboardScreen() {
                                 : "bg-slate-100 text-slate-500"
                               }`}
                           >
-                            {doc.value ? "✓ Uploaded" : doc.required ? "Pending" : "Not Provided"}
+                            {doc.value ? <> <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Uploaded</> : doc.required ? "Pending" : "Not Provided"}
                           </span>
                         </div>
 
@@ -2593,7 +2593,7 @@ export default function DashboardScreen() {
                     </p>
                     <div className="pt-1 flex items-center gap-2">
                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
-                        ✓ Declared and Agreed by Applicant
+                        <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Declared and Agreed by Applicant
                       </span>
                     </div>
                   </div>
@@ -3209,25 +3209,25 @@ export default function DashboardScreen() {
                       <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
                         <span className="font-medium text-slate-900">Student Photograph</span>
                         <span className={`text-[11px] font-bold ${formData.studentPhoto ? "text-emerald-600" : "text-amber-600"}`}>
-                          {formData.studentPhoto ? "✓ Attached" : "Pending"}
+                          {formData.studentPhoto ? <> <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Attached</> : "Pending"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
                         <span className="font-medium text-slate-900">10th Marksheet</span>
                         <span className={`text-[11px] font-bold ${formData.document10thMarksheet ? "text-emerald-600" : "text-amber-600"}`}>
-                          {formData.document10thMarksheet ? "✓ Attached" : "Pending"}
+                          {formData.document10thMarksheet ? <> <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Attached</> : "Pending"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
                         <span className="font-medium text-slate-900">12th Marksheet</span>
                         <span className={`text-[11px] font-bold ${formData.document12thMarksheet ? "text-emerald-600" : "text-amber-600"}`}>
-                          {formData.document12thMarksheet ? "✓ Attached" : "Pending"}
+                          {formData.document12thMarksheet ? <> <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Attached</> : "Pending"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
                         <span className="font-medium text-slate-900">Aadhaar Document</span>
                         <span className={`text-[11px] font-bold ${formData.documentAadhaarCard ? "text-emerald-600" : "text-amber-600"}`}>
-                          {formData.documentAadhaarCard ? "✓ Attached" : "Pending"}
+                          {formData.documentAadhaarCard ? <> <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Attached</> : "Pending"}
                         </span>
                       </div>
                     </div>
@@ -4980,7 +4980,7 @@ export default function DashboardScreen() {
                                     )}
                                     {isAttached && (
                                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.2 rounded-full">
-                                        ✓ Uploaded
+                                        <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Uploaded
                                       </span>
                                     )}
                                   </div>

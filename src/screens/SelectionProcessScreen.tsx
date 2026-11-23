@@ -69,7 +69,7 @@ export default function SelectionProcessScreen() {
     direct_interview_in_progress: 4,
     direct_interview_done: 5,
     selected: 6,
-    scholarship_awarded: 6,
+
     rejected: -1,
   };
 
@@ -118,7 +118,7 @@ export default function SelectionProcessScreen() {
     },
     {
       id: 6,
-      title: "Final Selection & 100% Free Scholarship Awarded",
+      title: "Final Selection and Admission",
       desc: "Approved by Board of Trustees. Official 100% free higher education sponsorship admission letter granted (College tuition, hostel & books fully funded).",
       completed: currentLevel >= 6,
       isCurrentWaiting: currentLevel === 5,

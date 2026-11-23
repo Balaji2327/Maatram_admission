@@ -5,7 +5,7 @@ export const memberLoginUrl = process.env.NEXT_PUBLIC_MEMBER_PORTAL_URL ||
   (process.env.NODE_ENV === "development" ? "http://localhost:3001/login" : "https://matramites.tech/login");
 
 export function redirectAdmittedApplicant(status?: string) {
-  if (status !== "selected" && status !== "scholarship_awarded") return false;
+  if (status !== "selected") return false;
   window.location.replace(memberLoginUrl);
   return true;
 }

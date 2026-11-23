@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  DevicePhoneMobileIcon,
+  EnvelopeIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   PencilSquareIcon,
@@ -264,9 +266,7 @@ function OtpVerificationContent() {
           <div className="mt-4 p-3 bg-amber-50/90 border border-amber-200 rounded-2xl flex items-center justify-between text-xs text-amber-950">
             <div>
               <p className="font-bold">
-                {isEmail
-                  ? "📧 Check your email inbox (or spam folder)"
-                  : "📱 SMS OTP"}
+                {isEmail ? <> <EnvelopeIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Check your email inbox (or spam folder)</> : <> <DevicePhoneMobileIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> SMS OTP</>}
               </p>
               <p className="text-[11px] text-amber-800">
                 You can also use instant test code: <span className="font-mono font-bold text-slate-900">123456</span>
