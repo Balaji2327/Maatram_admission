@@ -17,6 +17,7 @@ const libreFranklin = Libre_Franklin({
 });
 
 export const metadata: Metadata = {
+  icons: { icon: "/title.png" },
   title: "Scholar & Applicant Portal | Maatram Foundation",
   description:
     "Empowering Dreams Through Education. Sign in to your Maatram Foundation student portal.",
