@@ -277,9 +277,9 @@ export default function SelectionProcessScreen() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#F8FAFC] text-[#0F172A] font-primary selection:bg-[#F7BC0F] selection:text-black">
+    <div className="min-h-screen w-full bg-white text-black font-primary selection:bg-brand selection:text-black">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-2xs">
+      <header className="sticky top-0 z-40 bg-white/95 border-b border-black/15">
         <div className="w-full px-4 sm:px-8 lg:px-12 h-18 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4 shrink-0">
             <Link href="/dashboard" className="flex items-center focus:outline-none">
@@ -292,17 +292,17 @@ export default function SelectionProcessScreen() {
                 className="h-10 sm:h-11 w-auto object-contain"
               />
             </Link>
-            <div className="hidden md:block h-7 w-px bg-slate-200" />
+            <div className="hidden md:block h-7 w-px bg-black/10" />
             <div className="hidden md:flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="font-heading font-black text-xs text-slate-900 tracking-tight">
+                <span className="font-heading font-bold text-xs text-black tracking-tight">
                   Student Application Portal
                 </span>
-                <span className="px-1.5 py-0.5 rounded-md bg-amber-100/80 text-[10px] font-bold text-amber-900 border border-amber-300/60">
+                <span className="px-1.5 py-0.5 rounded-md bg-brand/15 text-[10px] font-bold text-black border border-brand/60">
                   2025–26
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 font-primary">
+              <span className="text-[11px] text-black/65 font-primary">
                 Transforming Lives Through Free Higher Education
               </span>
             </div>
@@ -311,7 +311,7 @@ export default function SelectionProcessScreen() {
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <Link
               href="/dashboard?tab=status"
-              className="inline-flex items-center gap-1.5 text-xs font-heading font-bold text-slate-700 hover:text-slate-950 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-heading font-bold text-black hover:text-black px-3 py-2 rounded-md border border-black/15 hover:bg-black/5 transition cursor-pointer"
             >
               <ArrowLeftIcon className="w-3.5 h-3.5" />
               <span>Back to Dashboard</span>
@@ -319,9 +319,9 @@ export default function SelectionProcessScreen() {
             <button
               type="button"
               onClick={() => setShowSignOutModal(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-heading font-bold text-slate-600 hover:text-red-600 px-3 py-2 rounded-xl border border-slate-200 hover:border-red-200 hover:bg-red-50/80 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-heading font-bold text-black hover:text-black px-3 py-2 rounded-md border border-black/15 hover:border-brand/60 hover:bg-brand/15 transition cursor-pointer"
             >
-              <ArrowLeftOnRectangleIcon className="w-4 h-4 text-slate-500" />
+              <ArrowLeftOnRectangleIcon className="w-4 h-4 text-black/65" />
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
@@ -330,24 +330,24 @@ export default function SelectionProcessScreen() {
 
       {/* Main Process Content */}
       <main className="w-full max-w-4xl mx-auto px-4 sm:px-8 py-8 sm:py-12 space-y-6">
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div className="bg-white border border-black/15 rounded-xl p-6 sm:p-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-black/15">
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-black bg-brand/15 px-2.5 py-1 rounded-md border border-brand/60">
                 Admission Track 2025 - 2026
               </span>
-              <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-slate-900 mt-2">
+              <h1 className="font-heading font-bold text-2xl sm:text-3xl text-black mt-2">
                 Application Progress Tracker
               </h1>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              <p className="text-xs sm:text-sm text-black/65 mt-0.5">
                 Real-time step-by-step verification milestones for your application.
               </p>
             </div>
-            <div className="flex flex-col sm:items-end bg-slate-50 border border-slate-200 p-4 rounded-2xl text-xs space-y-1 shrink-0">
-              <span className="text-slate-500">Application Number:</span>
-              <span className="font-mono font-bold text-slate-900 text-sm">{appNumber}</span>
-              <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex flex-col sm:items-end bg-black/5 border border-black/15 p-4 rounded-lg text-xs space-y-1 shrink-0">
+              <span className="text-black/65">Application Number:</span>
+              <span className="font-mono font-bold text-black text-sm">{appNumber}</span>
+              <span className="inline-flex items-center gap-1.5 text-black font-bold text-[11px] bg-brand/15 px-2 py-0.5 rounded-md border border-brand/60">
+                <span className="w-2 h-2 rounded-full bg-black animate-pulse" />
                 {stageStatus || "In Progress"}
               </span>
             </div>
@@ -356,7 +356,7 @@ export default function SelectionProcessScreen() {
           {/* Sequential Process Circles Flow */}
           <div className="mt-8 pt-4">
             {visibleSteps.length === 0 ? (
-              <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center text-xs text-slate-500">
+              <div className="p-6 bg-black/5 border border-dashed border-black/15 rounded-lg text-center text-xs text-black/65">
                 Submit your application to start tracking your verification progress.
               </div>
             ) : (
@@ -368,16 +368,16 @@ export default function SelectionProcessScreen() {
                     <div key={step.id} className="flex items-start group">
                       <div className="flex flex-col items-center mr-4 sm:mr-5 shrink-0">
                         {step.isRejected ? (
-                          <div className="w-10 h-10 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md shadow-rose-700/20 ring-4 ring-rose-50 transition-all duration-300">
+                          <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-sm ring-4 ring-brand transition-all duration-300">
                             <XMarkIcon className="w-6 h-6 stroke-[3]" />
                           </div>
                         ) : step.completed ? (
-                          <div className="w-10 h-10 rounded-full bg-[#107c41] text-white flex items-center justify-center shadow-md shadow-emerald-700/20 ring-4 ring-emerald-50 transition-all duration-300">
+                          <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-sm ring-4 ring-brand transition-all duration-300">
                             <CheckIcon className="w-6 h-6 stroke-[3]" />
                           </div>
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-white border-2 border-dashed border-slate-400 text-slate-500 flex items-center justify-center shadow-xs ring-4 ring-slate-100 animate-pulse">
-                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                          <div className="w-10 h-10 rounded-full bg-white border-2 border-dashed border-black text-black/65 flex items-center justify-center ring-4 ring-black animate-pulse">
+                            <span className="w-2.5 h-2.5 rounded-full bg-brand" />
                           </div>
                         )}
 
@@ -385,10 +385,10 @@ export default function SelectionProcessScreen() {
                           <div
                             className={`w-[3.5px] min-h-[56px] sm:min-h-[64px] transition-all duration-300 ${
                               step.completed
-                                ? "bg-[#107c41]"
+                                ? "bg-black"
                                 : step.isRejected
-                                  ? "bg-rose-300"
-                                  : "bg-slate-200"
+                                  ? "bg-brand/30"
+                                  : "bg-black/10"
                             }`}
                           />
                         )}
@@ -397,31 +397,31 @@ export default function SelectionProcessScreen() {
                       <div className={`pb-7 pt-1 ${isLast ? "pb-2" : ""}`}>
                         {step.isRejected ? (
                           <div>
-                            <h4 className="font-heading font-black text-sm sm:text-base text-rose-700 leading-snug">
+                            <h4 className="font-heading font-bold text-sm sm:text-base text-black leading-snug">
                               {step.title}
                             </h4>
-                            <p className="text-xs text-rose-600 mt-0.5 leading-relaxed font-medium">
+                            <p className="text-xs text-black mt-0.5 leading-relaxed font-medium">
                               {step.desc}
                             </p>
                           </div>
                         ) : step.completed ? (
                           <div>
-                            <h4 className="font-heading font-black text-sm sm:text-base text-slate-900 leading-snug">
+                            <h4 className="font-heading font-bold text-sm sm:text-base text-black leading-snug">
                               {step.title}
                             </h4>
-                            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            <p className="text-xs text-black/65 mt-0.5 leading-relaxed">
                               {step.desc}
                             </p>
                           </div>
                         ) : (
-                          <div className="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-3 sm:p-3.5 space-y-1">
+                          <div className="bg-brand/15 border border-brand/60 rounded-lg p-3 sm:p-3.5 space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                              <h4 className="font-heading font-black text-xs sm:text-sm text-amber-950">
+                              <span className="w-2 h-2 rounded-full bg-brand animate-ping" />
+                              <h4 className="font-heading font-bold text-xs sm:text-sm text-black">
                                 {step.waitingText}
                               </h4>
                             </div>
-                            <p className="text-[11px] text-amber-900/80 leading-relaxed pl-4">
+                            <p className="text-[11px] text-black/80 leading-relaxed pl-4">
                               Next stage in progress. Once this process is completed by our counseling team, the verification circle will activate and progress automatically.
                             </p>
                           </div>

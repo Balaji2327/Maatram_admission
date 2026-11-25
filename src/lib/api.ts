@@ -1,3 +1,4 @@
+import { createSessionReader } from "./sessionExpiry";
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "axios";
 
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -11,14 +12,12 @@ export function applicationMediaUrl(value: string): string {
 }
 
 // Token & User storage helpers
-export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("maatram_auth_token");
-}
+export const getAuthToken = createSessionReader("maatram_auth_token", "/login", clearAuthToken);
 
 export function setAuthToken(token: string) {
   if (typeof window !== "undefined") {
     localStorage.setItem("maatram_auth_token", token);
+    getAuthToken();
   }
 }
 
@@ -200,7 +199,21 @@ export const applicationApi = {
 
   // Final submission of student application
   submitApplication: async (formData: any): Promise<ApiResponse> => {
-    return callApi(() => apiClient.post("/application/submit", formData));
+    return callApi(async () => {
+      try {
+        return await apiClient.post("/application/submit", formData, { timeout: 120_000 });
+      } catch (error) {
+        if (!axios.isAxiosError(error)) throw error;
+        const status = error.response?.status;
+        if (status && ![408, 409, 502, 503, 504].includes(status)) throw error;
+        // The POST may have committed even though its response never reached the browser.
+        const check = await callApi(() => apiClient.get("/application/status"));
+        if (check.success && check.status && check.status !== "draft") {
+          return { data: { success: true, alreadySubmitted: true } };
+        }
+        return { data: { success: false, message: "We couldn't confirm your submission. Check your application status before submitting again." } };
+      }
+    });
   },
 
   // Get selection stage progress
