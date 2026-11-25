@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ const pendingKey = "maatramPendingSignup";
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const signupAttempt = useRef<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: "",
     mobileNumber: "",
@@ -108,6 +109,7 @@ export default function SignUpScreen() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    signupAttempt.current = null;
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -142,7 +144,9 @@ export default function SignUpScreen() {
 
     setIsSubmitting(true);
     try {
+      signupAttempt.current ??= crypto.randomUUID();
       const res = await authApi.signup({
+        challengeId: signupAttempt.current,
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
         mobileNumber: formData.mobileNumber.trim(),
@@ -150,15 +154,16 @@ export default function SignUpScreen() {
         confirmPassword: formData.confirmPassword,
       });
 
-      if (!res.success) {
+      if (!res.success && !res.challengeId) {
         setErrorMessage(res.message || "Failed to create account. Please try again.");
         setIsSubmitting(false);
         return;
       }
 
       if (!res.challengeId) throw new Error("Email verification could not start. Please try again.");
+      if (!res.success) setErrorMessage(res.message || "Check your inbox or request another code.");
       const now = Date.now();
-      savePending({ email: formData.email.trim(), challengeId: res.challengeId, sentAt: now, expiresAt: now + 600000 });
+      savePending({ email: formData.email.trim(), challengeId: res.challengeId, sentAt: res.sentAt ?? now, expiresAt: res.expiresAt ?? now + 600000 });
     } catch (err: any) {
       console.error("SignUp error:", err);
       setErrorMessage(err.message || "An unexpected error occurred. Please try again.");
@@ -193,7 +198,7 @@ export default function SignUpScreen() {
           Student Registration
         </h1>
         <p className="font-primary text-xs sm:text-sm text-black leading-relaxed mt-1.5 text-center">
-          {pending ? <>Enter the six-digit code sent to <strong>{pending.email}</strong>.</> : "Create your student account to apply for higher education support."}
+          {pending ? <>Enter the six-digit code for <strong>{pending.email}</strong>.</> : "Create your student account to apply for higher education support."}
         </p>
 
         {errorMessage && (
@@ -217,6 +222,7 @@ export default function SignUpScreen() {
             <div className="flex flex-wrap justify-between gap-3 text-sm">
               <button type="button" disabled={isSubmitting || resending} className="underline"
                 onClick={() => {
+                  signupAttempt.current = null;
                   sessionStorage.removeItem(pendingKey);
                   setFormData(previous => ({ ...previous, email: pending.email }));
                   setPending(null);

@@ -105,6 +105,7 @@ async function callApi<T = any>(
         message:
           error.response.data?.message ||
           `Request failed with status ${error.response.status}`,
+        challengeId: error.response.data?.challengeId,
         error: error.response.data?.error || error.message,
       };
     }
@@ -124,8 +125,9 @@ export const authApi = {
     mobileNumber: string;
     password: string;
     confirmPassword: string;
+    challengeId?: string;
   }): Promise<ApiResponse> => {
-    return callApi(() => apiClient.post("/auth/signup", payload));
+    return callApi(() => apiClient.post("/auth/signup", payload, { timeout: 90000 }));
   },
 
   // Student Login with Email and Password (No OTP)
@@ -151,7 +153,7 @@ export const authApi = {
     fullName?: string;
     channel?: "phone" | "email";
   }): Promise<ApiResponse> => {
-    return callApi(() => apiClient.post("/auth/send-otp", payload));
+    return callApi(() => apiClient.post("/auth/send-otp", payload, payload.type === "signup" ? { timeout: 90000 } : {}));
   },
 
   // Verify 6-digit OTP code and retrieve Supabase session
