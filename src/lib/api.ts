@@ -117,7 +117,7 @@ async function callApi<T = any>(
 
 // Auth API Endpoints (Powered by Axios)
 export const authApi = {
-  // Student Registration with Password (No OTP)
+  // Student registration with email verification
   signup: async (payload: {
     fullName: string;
     email: string;
@@ -147,6 +147,7 @@ export const authApi = {
     phone?: string;
     email?: string;
     type?: "login" | "signup";
+    challengeId?: string;
     fullName?: string;
     channel?: "phone" | "email";
   }): Promise<ApiResponse> => {
@@ -159,6 +160,7 @@ export const authApi = {
     email?: string;
     token: string;
     type?: "login" | "signup";
+    challengeId?: string;
     fullName?: string;
     channel?: "phone" | "email";
   }): Promise<ApiResponse> => {

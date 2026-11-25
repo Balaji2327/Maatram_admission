@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { authApi } from "../lib/api";
 
+type PendingSignup = { email: string; challengeId: string; sentAt: number; expiresAt: number };
+const pendingKey = "maatramPendingSignup";
+
 export default function SignUpScreen() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -28,6 +31,81 @@ export default function SignUpScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [pending, setPending] = useState<PendingSignup | null>(null);
+  const [code, setCode] = useState("");
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(pendingKey) || "null");
+      if (saved?.challengeId && saved.email && saved.expiresAt > Date.now()) setPending(saved);
+      else sessionStorage.removeItem(pendingKey);
+    } catch {
+      sessionStorage.removeItem(pendingKey);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pending) return;
+    const tick = () => {
+      const now = Date.now();
+      setSecondsLeft(Math.max(0, Math.ceil((pending.sentAt + 30000 - now) / 1000)));
+      if (now >= pending.expiresAt) {
+        sessionStorage.removeItem(pendingKey);
+        setPending(null);
+        setCode("");
+        setNotice("");
+        setErrorMessage("Your code expired. Submit your registration details to get a new one.");
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [pending]);
+
+  function savePending(next: PendingSignup) {
+    setPending(next);
+    sessionStorage.setItem(pendingKey, JSON.stringify(next));
+    setSecondsLeft(30);
+  }
+
+  async function resendCode() {
+    if (!pending || secondsLeft || isSubmitting || resending) return;
+    setResending(true);
+    setErrorMessage("");
+    setNotice("");
+    try {
+      const result = await authApi.sendOtp({ type: "signup", channel: "email", email: pending.email, challengeId: pending.challengeId });
+      if (!result.success) throw new Error(result.message || "Could not resend the code.");
+      savePending({ ...pending, sentAt: Date.now() });
+      setCode("");
+      setNotice("A new code has been sent. Use the latest email.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not resend the code.");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  async function verifyCode(event: React.FormEvent) {
+    event.preventDefault();
+    if (!pending || isSubmitting || resending) return;
+    setIsSubmitting(true);
+    setErrorMessage("");
+    setNotice("");
+    try {
+      const result = await authApi.verifyOtp({ type: "signup", channel: "email", email: pending.email, challengeId: pending.challengeId, token: code });
+      if (!result.success) throw new Error(result.message || "Could not verify the code.");
+      sessionStorage.removeItem(pendingKey);
+      router.replace("/login?registered=true&email=" + encodeURIComponent(pending.email));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not verify the code.");
+      setIsSubmitting(false);
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -78,8 +156,9 @@ export default function SignUpScreen() {
         return;
       }
 
-      // Successful registration: Redirect to Student Login screen with email prefilled
-      router.push(`/login?registered=true&email=${encodeURIComponent(formData.email.trim())}`);
+      if (!res.challengeId) throw new Error("Email verification could not start. Please try again.");
+      const now = Date.now();
+      savePending({ email: formData.email.trim(), challengeId: res.challengeId, sentAt: now, expiresAt: now + 600000 });
     } catch (err: any) {
       console.error("SignUp error:", err);
       setErrorMessage(err.message || "An unexpected error occurred. Please try again.");
@@ -114,15 +193,44 @@ export default function SignUpScreen() {
           Student Registration
         </h1>
         <p className="font-primary text-xs sm:text-sm text-black leading-relaxed mt-1.5 text-center">
-          Create your student account to apply for higher education support.
+          {pending ? <>Enter the six-digit code sent to <strong>{pending.email}</strong>.</> : "Create your student account to apply for higher education support."}
         </p>
 
         {errorMessage && (
-          <div className="mt-4 p-3 bg-brand/15 border border-brand/60 rounded-md text-xs text-black font-medium">
+          <div role="alert" className="mt-4 p-3 bg-brand/15 border border-brand/60 rounded-md text-xs text-black font-medium">
             {errorMessage}
           </div>
         )}
 
+        {pending ? (
+          <form onSubmit={verifyCode} className="mt-5 space-y-4">
+            <label htmlFor="signup-code" className="block text-sm font-heading font-bold">Email verification code</label>
+            <input id="signup-code" type="text" inputMode="numeric" autoComplete="one-time-code"
+              autoFocus required maxLength={6} pattern="[0-9]{6}" value={code}
+              onChange={event => setCode(event.target.value.replace(/\D/g, ""))}
+              className="w-full rounded-md border border-black/20 px-4 py-3 font-mono tracking-widest focus:outline-brand" />
+            {notice && <p role="status" className="text-sm">{notice}</p>}
+            <button type="submit" disabled={code.length !== 6 || isSubmitting || resending}
+              className="w-full rounded-md bg-brand py-3 font-heading font-bold disabled:opacity-60">
+              {isSubmitting ? "Verifying?" : "Verify and create account"}
+            </button>
+            <div className="flex flex-wrap justify-between gap-3 text-sm">
+              <button type="button" disabled={isSubmitting || resending} className="underline"
+                onClick={() => {
+                  sessionStorage.removeItem(pendingKey);
+                  setFormData(previous => ({ ...previous, email: pending.email }));
+                  setPending(null);
+                  setCode("");
+                  setErrorMessage("");
+                  setNotice("");
+                }}>Edit registration details</button>
+              <button type="button" disabled={secondsLeft > 0 || resending || isSubmitting} onClick={resendCode}
+                className="font-semibold disabled:opacity-60">
+                {resending ? "Sending?" : secondsLeft ? "Resend in " + secondsLeft + "s" : "Resend code"}
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleSignUp} className="mt-5 space-y-4" autoComplete="off">
           {/* Field 1: Full Name */}
           <div>
@@ -253,7 +361,7 @@ export default function SignUpScreen() {
             disabled={isSubmitting}
             className="w-full bg-brand hover:brightness-95 text-black font-heading font-bold text-sm sm:text-base py-3.5 px-6 rounded-md flex items-center justify-center gap-2 shadow-sm hover:shadow-sm transition-all duration-200 cursor-pointer mt-5 border border-brand disabled:opacity-70"
           >
-            <span>{isSubmitting ? "Creating Account..." : "Create Account"}</span>
+            <span>{isSubmitting ? "Sending code?" : "Create Account"}</span>
             <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
           </button>
 
@@ -270,6 +378,7 @@ export default function SignUpScreen() {
             </Link>
           </div>
         </form>
+        )}
 
       </div>
     </main>
