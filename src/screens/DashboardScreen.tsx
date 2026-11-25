@@ -47,8 +47,6 @@ export type ApplicationTabType =
   | "siblings"
   | "address"
   | "educational"
-  | "financial"
-  | "background"
   | "documents";
 
 function getDraftOwnerKey() {
@@ -206,23 +204,6 @@ export default function DashboardScreen() {
     hostelRequired: "Yes",
     careerGoal: "",
 
-    // F. Financial Information
-    incomeSources: "",
-    familyDebts: "",
-    educationLoans: "",
-    financialDifficulties: "",
-    whyNeedSupport: "",
-    affordabilityWithoutSupport: "Cannot afford at all",
-
-    // G. Personal and Background Information
-    orphan: "No",
-    singleParent: "No",
-    firstGenerationLearner: "Yes",
-    specialCircumstances: "",
-    careerAmbition: "",
-    willingToRelocateTN: "Yes",
-    futureGoals: "",
-
     // H. Document Uploads
     studentPhoto: "",
     document10thMarksheet: "",
@@ -252,12 +233,15 @@ export default function DashboardScreen() {
     "motherEmploymentStatus",
     "annualIncome",
     "familyMembersCount",
+    "familyType",
     "siblingCount",
     "siblingsStudyingCount",
     "permanentAddress",
     "villageTown",
     "district",
     "pincode",
+    "state",
+    "residenceType",
     "tenthSchool",
     "tenthBoard",
     "tenthYear",
@@ -274,19 +258,15 @@ export default function DashboardScreen() {
     "twelfthStream",
     "twelfthTotalMarks",
     "twelfthPercentage",
+    "tenthSchoolAddress",
+    "eleventhSchoolAddress",
+    "twelfthSchoolAddress",
+    "firstGraduate",
+    "hostelRequired",
     "preferredDegree",
     "preferredBranch",
     "secondBranch",
     "preferredCollegeLocation",
-    "incomeSources",
-    "familyDebts",
-    "educationLoans",
-    "affordabilityWithoutSupport",
-    "financialDifficulties",
-    "whyNeedSupport",
-    "careerAmbition",
-    "futureGoals",
-    "specialCircumstances",
   ] as const;
 
   const applicationFieldTabs: Record<string, ApplicationTabType> = {
@@ -308,6 +288,7 @@ export default function DashboardScreen() {
     motherEmploymentStatus: "family",
     annualIncome: "family",
     familyMembersCount: "family",
+    familyType: "family",
     siblingCount: "siblings",
     siblingsStudyingCount: "siblings",
     permanentAddress: "address",
@@ -316,7 +297,14 @@ export default function DashboardScreen() {
     villageTown: "address",
     district: "address",
     pincode: "address",
+    state: "address",
+    residenceType: "address",
     tenthSchool: "educational",
+    tenthSchoolAddress: "educational",
+    eleventhSchoolAddress: "educational",
+    twelfthSchoolAddress: "educational",
+    firstGraduate: "educational",
+    hostelRequired: "educational",
     tenthBoard: "educational",
     tenthYear: "educational",
     tenthTotalMarks: "educational",
@@ -337,15 +325,6 @@ export default function DashboardScreen() {
     preferredBranch: "educational",
     secondBranch: "educational",
     preferredCollegeLocation: "educational",
-    incomeSources: "financial",
-    familyDebts: "financial",
-    educationLoans: "financial",
-    affordabilityWithoutSupport: "financial",
-    financialDifficulties: "financial",
-    whyNeedSupport: "financial",
-    careerAmbition: "background",
-    futureGoals: "background",
-    specialCircumstances: "background",
     studentPhoto: "documents",
     document10thMarksheet: "documents",
     document12thMarksheet: "documents",
@@ -359,7 +338,7 @@ export default function DashboardScreen() {
 
     if (missingField) return missingField;
 
-    if (!formData.sameAsPermanent && !formData.currentAddress.trim()) {
+    if (!(formData.sameAsPermanent ? formData.permanentAddress : formData.currentAddress).trim()) {
       return "currentAddress";
     }
 
@@ -371,18 +350,8 @@ export default function DashboardScreen() {
       return "preferredDegree";
     }
 
-    if (Number(formData.siblingCount) > 0) {
-      const hasIncompleteSibling = siblings.some(
-        (sibling) =>
-          !sibling.name.trim() ||
-          !sibling.relationship.trim() ||
-          !sibling.age.trim() ||
-          !sibling.education.trim() ||
-          !sibling.institution.trim()
-      );
-      if (hasIncompleteSibling || siblings.length !== Number(formData.siblingCount)) {
-        return "siblingCount";
-      }
+    if (getSiblingDetailsError()) {
+      return "siblingCount";
     }
 
     const hasIncompleteSubject = [...tenthSubjects, ...eleventhSubjects, ...twelfthSubjects].some(
@@ -415,6 +384,33 @@ export default function DashboardScreen() {
     education: string;
     institution: string;
   }>>([]);
+
+  const isSiblingComplete = (sibling: (typeof siblings)[number]) =>
+    Boolean(
+      sibling.name.trim() &&
+      sibling.relationship.trim() &&
+      sibling.age.trim() &&
+      sibling.education.trim() &&
+      sibling.institution.trim()
+    );
+
+  // Returns a message when the entered sibling count and the sibling details do not match
+  const getSiblingDetailsError = (): string | null => {
+    const raw = String(formData.siblingCount ?? "").trim();
+    const count = raw === "" ? 0 : parseInt(raw, 10);
+    if (!Number.isFinite(count) || count <= 0) return null;
+    const completed = siblings.filter(isSiblingComplete).length;
+    if (siblings.length < count) {
+      return `You entered ${count} sibling${count > 1 ? "s" : ""}. Please add details for all ${count} using "+ Add Sibling" (${siblings.length} of ${count} added).`;
+    }
+    if (siblings.length > count) {
+      return `You entered ${count} sibling${count > 1 ? "s" : ""} but added ${siblings.length}. Please update the total or remove extra entries.`;
+    }
+    if (completed < count) {
+      return `Please fill all fields for every sibling (${completed} of ${count} complete).`;
+    }
+    return null;
+  };
 
   const handleAddSibling = () => {
     setSiblings((prev) => [
@@ -630,9 +626,6 @@ export default function DashboardScreen() {
       twelfthTotalMarks: twelfth.total ? String(twelfth.total) : "",
       twelfthPercentage: twelfth.total && twelfth.max ? ((twelfth.total / twelfth.max) * 100).toFixed(2) : "",
     };
-    if (field === "affordabilityWithoutSupport") {
-      return String(formData.affordabilityWithoutSupport || "Cannot afford at all");
-    }
     return calculatedValues[field] || String(formData[field as keyof typeof formData] ?? "");
   };
 
@@ -776,8 +769,6 @@ export default function DashboardScreen() {
     "siblings",
     "address",
     "educational",
-    "financial",
-    "background",
     "documents",
   ];
 
@@ -787,8 +778,6 @@ export default function DashboardScreen() {
     siblings: requiredApplicationFields.filter((field) => applicationFieldTabs[field] === "siblings"),
     address: requiredApplicationFields.filter((field) => applicationFieldTabs[field] === "address"),
     educational: requiredApplicationFields.filter((field) => applicationFieldTabs[field] === "educational"),
-    financial: requiredApplicationFields.filter((field) => applicationFieldTabs[field] === "financial"),
-    background: requiredApplicationFields.filter((field) => applicationFieldTabs[field] === "background"),
     documents: [],
   };
 
@@ -798,21 +787,11 @@ export default function DashboardScreen() {
     );
 
     if (missingField) return missingField;
-    if (tab === "siblings" && Number(formData.siblingCount) > 0) {
-      const hasIncompleteSibling = siblings.some(
-        (sibling) =>
-          !sibling.name.trim() ||
-          !sibling.relationship.trim() ||
-          !sibling.age.trim() ||
-          !sibling.education.trim() ||
-          !sibling.institution.trim()
-      );
-      if (hasIncompleteSibling || siblings.length !== Number(formData.siblingCount)) {
-        return "siblingCount";
-      }
+    if (tab === "siblings" && getSiblingDetailsError()) {
+      return "siblingCount";
     }
 
-    if (tab === "address" && !formData.sameAsPermanent && !formData.currentAddress.trim()) {
+    if (tab === "address" && !(formData.sameAsPermanent ? formData.permanentAddress : formData.currentAddress).trim()) {
       return "currentAddress";
     }
 
@@ -851,7 +830,7 @@ export default function DashboardScreen() {
     const firstIncompleteTab = getFirstIncompleteStep();
     const firstIncompleteIndex = tabOrder.indexOf(firstIncompleteTab);
 
-    if (targetIndex > firstIncompleteIndex || (targetIndex === 7 && !isSectionComplete("background"))) {
+    if (targetIndex > firstIncompleteIndex) {
       const missingField = getMissingSectionField(firstIncompleteTab);
       if (missingField) showIncompleteApplicationModal(missingField);
       return;
@@ -860,6 +839,13 @@ export default function DashboardScreen() {
     setActiveTab(targetTab);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Keep current address in sync with permanent address when "Same as permanent" is ticked
+  useEffect(() => {
+    if (formData.sameAsPermanent && formData.currentAddress !== formData.permanentAddress) {
+      setFormData((prev) => ({ ...prev, currentAddress: prev.permanentAddress }));
+    }
+  }, [formData.sameAsPermanent, formData.permanentAddress, formData.currentAddress]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -886,7 +872,7 @@ export default function DashboardScreen() {
   function schoolAddressField(name: "tenthSchoolAddress" | "eleventhSchoolAddress" | "twelfthSchoolAddress", grade: string) {
     return (
       <div className="sm:col-span-2 lg:col-span-4">
-        <label htmlFor={name} className="block text-xs font-heading font-bold text-black">{grade} School Address</label>
+        <label htmlFor={name} className="block text-xs font-heading font-bold text-black">{grade} School Address/{grade === "10th" ? "10ஆம்" : grade === "11th" ? "11ஆம்" : "12ஆம்"} வகுப்பு பள்ளி முகவரி <span className="text-red-500">*</span></label>
         <textarea id={name} name={name} rows={2} value={formData[name]} onChange={handleChange}
           placeholder="Street, village or town, district and PIN code"
           className="mt-1 w-full rounded-md border border-black/15 bg-white px-3 py-2 text-xs text-black focus:border-brand focus:outline-none sm:text-sm" />
@@ -998,7 +984,7 @@ export default function DashboardScreen() {
         if (localDraft?.eleventhSubjects) setEleventhSubjects(localDraft.eleventhSubjects);
         if (localDraft?.twelfthSubjects) setTwelfthSubjects(localDraft.twelfthSubjects);
         if (localDraft?.tenthSubjects) setTenthSubjects(localDraft.tenthSubjects);
-        if (localDraft?.activeTab) setActiveTab(localDraft.activeTab);
+        if (localDraft?.activeTab && tabOrder.includes(localDraft.activeTab)) setActiveTab(localDraft.activeTab);
 
         if (res.success && res.data) {
           const d = res.data;
@@ -1139,7 +1125,6 @@ export default function DashboardScreen() {
 
   const handleFinalSubmit = async (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    setShowSubmitConfirmation(false);
     setIsSubmitting(true);
     try {
       const tenth = calcTenthTotal();
@@ -1188,6 +1173,7 @@ export default function DashboardScreen() {
       alert(err instanceof Error ? err.message : "Application submission failed. Please retry.");
     } finally {
       setIsSubmitting(false);
+      setShowSubmitConfirmation(false);
     }
   };
 
@@ -1221,7 +1207,7 @@ export default function DashboardScreen() {
             <div className="flex items-center gap-3">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="font-heading font-bold text-xs text-black tracking-tight uppercase">
+                  <span className="font-heading font-bold text-xl sm:text-2xl text-black tracking-tight uppercase">
                     {studentNavTab === "profile"
                       ? "Student Profile"
                       : "Student Dashboard"}
@@ -1277,9 +1263,8 @@ export default function DashboardScreen() {
                 <span className="text-[11px] font-bold uppercase tracking-wider text-black/65">Current Status</span>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      applicationStatusData.status === "rejected" ? "bg-black" : "bg-brand"
-                    }`}
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${applicationStatusData.status === "rejected" ? "bg-black" : "bg-brand"
+                      }`}
                   />
                   <strong className="text-black text-sm font-heading truncate">
                     {applicationStatusData.status === "telephonic_done"
@@ -1338,59 +1323,59 @@ export default function DashboardScreen() {
             {(applicationStatusData.status === "physical_verification_done" ||
               applicationStatusData.status === "home_visit_done" ||
               applicationStatusData.status === "video_interview_in_progress") && (
-              <div className="bg-brand/10 border-2 border-brand/80 rounded-xl p-6 sm:p-7 space-y-4 animate-in fade-in duration-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start sm:items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-lg bg-black text-white flex items-center justify-center shrink-0 shadow-sm">
-                      <VideoCameraIcon className="w-7 h-7 stroke-[2.2]" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-2.5 py-0.5 rounded-md bg-brand/15 text-black text-[11px] font-bold uppercase tracking-wider border border-brand/60">
-                          Phase 3 Active
-                        </span>
-                        <span className="text-xs text-black/65 font-medium">Virtual Advisory Panel</span>
+                <div className="bg-brand/10 border-2 border-brand/80 rounded-xl p-6 sm:p-7 space-y-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start sm:items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-lg bg-black text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <VideoCameraIcon className="w-7 h-7 stroke-[2.2]" />
                       </div>
-                      <h3 className="text-base sm:text-lg font-heading font-bold text-black mt-0.5">
-                        Your Google Meet Video Interview is Scheduled!
-                      </h3>
-                      <p className="text-xs text-black mt-0.5">
-                        Congratulations on clearing Physical Verification! Please join the Google Meet call below at your scheduled time.
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-0.5 rounded-md bg-brand/15 text-black text-[11px] font-bold uppercase tracking-wider border border-brand/60">
+                            Phase 3 Active
+                          </span>
+                          <span className="text-xs text-black/65 font-medium">Virtual Advisory Panel</span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-heading font-bold text-black mt-0.5">
+                          Your Google Meet Video Interview is Scheduled!
+                        </h3>
+                        <p className="text-xs text-black mt-0.5">
+                          Congratulations on clearing Physical Verification! Please join the Google Meet call below at your scheduled time.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                      <a
+                        href={applicationStatusData.videoInterviewLink || (formData as any).video_interview_link || "https://meet.google.com"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-black hover:bg-black text-white text-xs sm:text-sm font-heading font-bold uppercase tracking-wider rounded-lg shadow-sm hover:shadow-sm transition cursor-pointer"
+                      >
+                        <VideoCameraIcon className="w-5 h-5 stroke-[2.5]" />
+                        <span>Join Google Meet</span>
+                      </a>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
-                    <a
-                      href={applicationStatusData.videoInterviewLink || (formData as any).video_interview_link || "https://meet.google.com"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-black hover:bg-black text-white text-xs sm:text-sm font-heading font-bold uppercase tracking-wider rounded-lg shadow-sm hover:shadow-sm transition cursor-pointer"
-                    >
-                      <VideoCameraIcon className="w-5 h-5 stroke-[2.5]" />
-                      <span>Join Google Meet</span>
-                    </a>
+                  <div className="p-3.5 bg-white/90 rounded-lg border border-brand/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-bold text-black shrink-0">Meeting Link:</span>
+                      <a
+                        href={applicationStatusData.videoInterviewLink || (formData as any).video_interview_link || "https://meet.google.com"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-black hover:text-black underline truncate block"
+                      >
+                        {applicationStatusData.videoInterviewLink || (formData as any).video_interview_link || "https://meet.google.com/mtr-vid-room"}
+                      </a>
+                    </div>
+                    <span className="text-[11px] text-black/65 font-medium shrink-0">
+                      Camera & microphone required
+                    </span>
                   </div>
                 </div>
-
-                <div className="p-3.5 bg-white/90 rounded-lg border border-brand/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-bold text-black shrink-0">Meeting Link:</span>
-                    <a
-                      href={applicationStatusData.videoInterviewLink || (formData as any).video_interview_link || "https://meet.google.com"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-black hover:text-black underline truncate block"
-                    >
-                      {applicationStatusData.videoInterviewLink || (formData as any).video_interview_link || "https://meet.google.com/mtr-vid-room"}
-                    </a>
-                  </div>
-                  <span className="text-[11px] text-black/65 font-medium shrink-0">
-                    Camera & microphone required
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
 
             {/* 3. Main Two-Column Layout: Live Selection Flow Tracker & Application Summary */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1672,13 +1657,12 @@ export default function DashboardScreen() {
                                   {/* Vertical Connecting Line */}
                                   {!isLast && (
                                     <div
-                                      className={`w-[3.5px] min-h-[52px] sm:min-h-[58px] transition-all duration-300 ${
-                                        step.completed
+                                      className={`w-[3.5px] min-h-[52px] sm:min-h-[58px] transition-all duration-300 ${step.completed
                                           ? "bg-black"
                                           : step.isRejected
                                             ? "bg-brand/30"
                                             : "bg-black/10"
-                                      }`}
+                                        }`}
                                     />
                                   )}
                                 </div>
@@ -2389,110 +2373,6 @@ export default function DashboardScreen() {
                   </div>
                 </div>
 
-                {/* Section F: Financial Information */}
-                <div className="bg-black/5 border border-black/15 rounded-lg p-5 sm:p-6 space-y-4">
-                  <div className="flex items-center justify-between border-b border-black/15 pb-3">
-                    <h3 className="font-heading font-bold text-sm uppercase tracking-wider text-black flex items-center gap-2">
-                      <CurrencyRupeeIcon className="w-4 h-4 text-brand" />
-                      Financial Information & Economic Hardship
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudentNavTab("dashboard");
-                        setActiveTab("financial");
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="text-xs font-bold text-black hover:text-black hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <PencilSquareIcon className="w-3.5 h-3.5" />
-                      Edit Details
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Annual Family Income</span>
-                      <strong className="text-black font-mono text-sm">{formData.annualIncome ? `₹${formData.annualIncome}` : "—"}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Income Sources</span>
-                      <strong className="text-black">{formData.incomeSources || "—"}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Outstanding Debts / Loans</span>
-                      <strong className="text-black">{formData.familyDebts || "None"}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Existing Education Loans</span>
-                      <strong className="text-black">{formData.educationLoans || "None"}</strong>
-                    </div>
-                    <div className="sm:col-span-3">
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Ability to Afford College without Support</span>
-                      <strong className="text-black">{formData.affordabilityWithoutSupport || "Cannot afford higher education without full sponsorship"}</strong>
-                    </div>
-                    <div className="sm:col-span-2 bg-white p-3.5 rounded-md border border-black/15">
-                      <span className="text-[11px] text-black/65 block uppercase font-bold">Financial Difficulties Faced by Family</span>
-                      <p className="text-black mt-1 leading-relaxed">{formData.financialDifficulties || "—"}</p>
-                    </div>
-                    <div className="sm:col-span-2 bg-white p-3.5 rounded-md border border-black/15">
-                      <span className="text-[11px] text-black/65 block uppercase font-bold">Why the Student Needs Financial Support</span>
-                      <p className="text-black mt-1 leading-relaxed">{formData.whyNeedSupport || "—"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section G: Personal and Background Information */}
-                <div className="bg-black/5 border border-black/15 rounded-lg p-5 sm:p-6 space-y-4">
-                  <div className="flex items-center justify-between border-b border-black/15 pb-3">
-                    <h3 className="font-heading font-bold text-sm uppercase tracking-wider text-black flex items-center gap-2">
-                      <SparklesIcon className="w-4 h-4 text-brand" />
-                      Personal and Background Information
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudentNavTab("dashboard");
-                        setActiveTab("background");
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="text-xs font-bold text-black hover:text-black hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <PencilSquareIcon className="w-3.5 h-3.5" />
-                      Edit Details
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Orphan Status</span>
-                      <strong className="text-black">{formData.orphan || "No"}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Single-Parent Status</span>
-                      <strong className="text-black">{formData.singleParent || "No"}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">First-Generation Learner</span>
-                      <strong className="text-black">{formData.firstGenerationLearner || "Yes"}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-black/65 block uppercase font-medium">Willingness to Relocate in TN</span>
-                      <strong className="text-black">{formData.willingToRelocateTN || "Yes"}</strong>
-                    </div>
-                    <div className="sm:col-span-2 bg-white p-3.5 rounded-md border border-black/15">
-                      <span className="text-[11px] text-black/65 block uppercase font-bold">Career Ambition</span>
-                      <p className="text-black mt-1 leading-relaxed">{formData.careerAmbition || formData.careerGoal || "—"}</p>
-                    </div>
-                    <div className="sm:col-span-2 bg-white p-3.5 rounded-md border border-black/15">
-                      <span className="text-[11px] text-black/65 block uppercase font-bold">Future Goals & Vision</span>
-                      <p className="text-black mt-1 leading-relaxed">{formData.futureGoals || "—"}</p>
-                    </div>
-                    <div className="sm:col-span-2 bg-white p-3.5 rounded-md border border-black/15">
-                      <span className="text-[11px] text-black/65 block uppercase font-bold">Special Family Circumstances</span>
-                      <p className="text-black mt-1 leading-relaxed">{formData.specialCircumstances || "None specified"}</p>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Section H: Uploaded Documents & Certificates (Interactive Preview) */}
                 <div className="bg-black/5 border border-black/15 rounded-lg p-5 sm:p-6 space-y-4">
                   <div className="flex items-center justify-between border-b border-black/15 pb-3">
@@ -2639,9 +2519,8 @@ export default function DashboardScreen() {
                       <span className="block font-mono text-xs font-bold text-black">
                         Application ID: {formData.applicationNumber || "MF-2025-001"}
                       </span>
-                      <span className={`inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                        isSubmitted ? "text-black bg-brand/15" : "text-black bg-brand/15"
-                      }`}>
+                      <span className={`inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${isSubmitted ? "text-black bg-brand/15" : "text-black bg-brand/15"
+                        }`}>
                         {isSubmitted ? "Application Officially Submitted" : "Ready for Final Submission"}
                       </span>
                     </div>
@@ -2967,7 +2846,7 @@ export default function DashboardScreen() {
                       <SubjectMarks subjects={tenthSubjects} />
                     </div>
 
-                  {eleventhSummary}
+                    {eleventhSummary}
 
                     {/* 12th Standard Summary & Mark Table */}
                     <div className="bg-white p-4 rounded-md border border-black/15 space-y-3">
@@ -3042,114 +2921,6 @@ export default function DashboardScreen() {
                           <strong className="text-black">{formData.preferredCollegeLocation || "-"}</strong>
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Section 6: Financial Information */}
-                  <div className="bg-black/5 border border-black/15 rounded-lg p-5 space-y-3">
-                    <div className="flex items-center justify-between border-b border-black/15 pb-2">
-                      <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-black flex items-center gap-2">
-                        <CurrencyRupeeIcon className="w-4 h-4 text-brand" />
-                        Financial Information
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsReviewOpen(false);
-                          setActiveTab("financial");
-                          window.scrollTo({ top: 0, behavior: "smooth" });
-                        }}
-                        className="text-xs font-bold text-black hover:underline flex items-center gap-1"
-                      >
-                        <PencilSquareIcon className="w-4 h-4" />
-                        Edit Section
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-xs">
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Annual Family Income</span>
-                        <strong className="text-black">{formData.annualIncome || "-"}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Income Sources</span>
-                        <strong className="text-black">{formData.incomeSources || "-"}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Family Debts</span>
-                        <strong className="text-black">{formData.familyDebts || "None"}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Existing Education Loans</span>
-                        <strong className="text-black">{formData.educationLoans || "None"}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Ability to Afford College</span>
-                        <strong className="text-black">{formData.affordabilityWithoutSupport || "Cannot afford without full support"}</strong>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Financial Difficulties Faced</span>
-                        <p className="text-black mt-0.5">{formData.financialDifficulties || "—"}</p>
-                      </div>
-                      <div className="sm:col-span-4">
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Why the Student Needs Financial Support</span>
-                        <p className="text-black mt-0.5">{formData.whyNeedSupport || "—"}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section 7: Personal and Background Information */}
-                  <div className="bg-black/5 border border-black/15 rounded-lg p-5 space-y-3">
-                    <div className="flex items-center justify-between border-b border-black/15 pb-2">
-                      <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-black flex items-center gap-2">
-                        <SparklesIcon className="w-4 h-4 text-brand" />
-                        Personal and Background Information
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsReviewOpen(false);
-                          setActiveTab("background");
-                          window.scrollTo({ top: 0, behavior: "smooth" });
-                        }}
-                        className="text-xs font-bold text-black hover:underline flex items-center gap-1"
-                      >
-                        <PencilSquareIcon className="w-4 h-4" />
-                        Edit Section
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Orphan Status</span>
-                        <strong className="text-black">{formData.orphan || "No"}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Single-Parent Status</span>
-                        <strong className="text-black">{formData.singleParent || "No"}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">First-Generation Learner</span>
-                        <strong className="text-black">{formData.firstGenerationLearner || "Yes"}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Willingness to Relocate in TN</span>
-                        <strong className="text-black">{formData.willingToRelocateTN || "Yes"}</strong>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Career Ambition</span>
-                        <p className="text-black mt-0.5">{formData.careerAmbition || formData.careerGoal || "—"}</p>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <span className="text-[11px] text-black/65 block uppercase font-medium">Future Goals</span>
-                        <p className="text-black mt-0.5">{formData.futureGoals || "—"}</p>
-                      </div>
-                      {formData.specialCircumstances && (
-                        <div className="sm:col-span-2">
-                          <span className="text-[11px] text-black/65 block uppercase font-medium">Special Family Circumstances</span>
-                          <p className="text-black mt-0.5">{formData.specialCircumstances}</p>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -3263,17 +3034,15 @@ export default function DashboardScreen() {
                     </div>
                   </div>
 
-                  {/* Sequential Application Stepper - 8 Steps A to H */}
+                  {/* Sequential Application Stepper - 6 Steps */}
                   <div className="mt-6 overflow-x-auto scrollbar-none">
-                    <div className="min-w-[760px] flex items-start px-2">
+                    <div className="min-w-[580px] flex items-start px-2">
                       {[
                         { id: "personal", label: "Personal", icon: UserIcon },
                         { id: "family", label: "Family", icon: HomeModernIcon },
                         { id: "siblings", label: "Siblings", icon: UserGroupIcon },
                         { id: "address", label: "Address", icon: MapPinIcon },
                         { id: "educational", label: "Educational", icon: AcademicCapIcon },
-                        { id: "financial", label: "Financial", icon: CurrencyRupeeIcon },
-                        { id: "background", label: "Background", icon: SparklesIcon },
                         { id: "documents", label: "Documents", icon: DocumentTextIcon },
                       ].map((tab, index, tabs) => {
                         const Icon = tab.icon;
@@ -3293,10 +3062,10 @@ export default function DashboardScreen() {
                             >
                               <span
                                 className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition ${isComplete
-                                    ? "border-brand bg-black text-white"
-                                    : isActive
-                                      ? "border-brand bg-brand text-black shadow-sm "
-                                      : "border-black/15 bg-white text-black/65"
+                                  ? "border-brand bg-black text-white"
+                                  : isActive
+                                    ? "border-brand bg-brand text-black shadow-sm "
+                                    : "border-black/15 bg-white text-black/65"
                                   } ${!isLocked && !isComplete && !isActive ? "group-hover:border-brand" : ""}`}
                               >
                                 {isComplete ? (
@@ -3307,10 +3076,10 @@ export default function DashboardScreen() {
                               </span>
                               <span
                                 className={`whitespace-nowrap text-[11px] font-semibold ${isComplete
+                                  ? "text-black"
+                                  : isActive
                                     ? "text-black"
-                                    : isActive
-                                      ? "text-black"
-                                      : "text-black/65"
+                                    : "text-black/65"
                                   }`}
                               >
                                 {tab.label}
@@ -3349,7 +3118,7 @@ export default function DashboardScreen() {
                         {/* Student Full Name */}
                         <div className="sm:col-span-2 lg:col-span-3">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Student Full Name <span className="text-red-500">*</span> (as in 10th / 12th certificate)
+                            Student Full Name/மாணவர் முழு பெயர் <span className="text-red-500">*</span> (as in 10th / 12th certificate)
                           </label>
                           <input
                             type="text"
@@ -3365,7 +3134,7 @@ export default function DashboardScreen() {
                         {/* Date of Birth */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Date of Birth <span className="text-red-500">*</span>
+                            Date of Birth/பிறந்த தேதி <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="date"
@@ -3379,7 +3148,7 @@ export default function DashboardScreen() {
                         {/* Gender */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Gender <span className="text-red-500">*</span>
+                            Gender/பாலினம் <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="gender"
@@ -3397,7 +3166,7 @@ export default function DashboardScreen() {
                         {/* Blood Group */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Blood Group
+                            Blood Group/இரத்த வகை <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3412,7 +3181,7 @@ export default function DashboardScreen() {
                         {/* Mobile Number */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Mobile Number <span className="text-red-500">*</span>
+                            Mobile Number/கைபேசி எண் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="tel"
@@ -3427,7 +3196,7 @@ export default function DashboardScreen() {
                         {/* WhatsApp Number */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            WhatsApp Number
+                            WhatsApp Number/வாட்ஸ்அப் எண் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="tel"
@@ -3442,7 +3211,7 @@ export default function DashboardScreen() {
                         {/* Email Address */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Email Address <span className="text-red-500">*</span>
+                            Email Address/மின்னஞ்சல் முகவரி <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="email"
@@ -3457,7 +3226,7 @@ export default function DashboardScreen() {
                         {/* Aadhaar Number */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Aadhaar Number <span className="text-black/65 font-normal"></span>
+                            Aadhaar Number/ஆதார் எண் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3473,7 +3242,7 @@ export default function DashboardScreen() {
                         {/* Community / Category */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Community / Category <span className="text-red-500">*</span>
+                            Community / Category/சமூகம் / பிரிவு <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="community"
@@ -3496,7 +3265,7 @@ export default function DashboardScreen() {
                         {/* Nationality */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Nationality
+                            Nationality/தேசியம்
                           </label>
                           <input
                             type="text"
@@ -3528,7 +3297,7 @@ export default function DashboardScreen() {
                         {/* Father's Name */}
                         <div className="lg:col-span-2">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Father's Name
+                            Father's Name/தந்தையின் பெயர் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3543,7 +3312,7 @@ export default function DashboardScreen() {
                         {/* Father's Occupation */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Father's Occupation
+                            Father's Occupation/தந்தையின் தொழில் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3558,7 +3327,7 @@ export default function DashboardScreen() {
                         {/* Father's Annual Income */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Father's Annual Income (₹)
+                            Father's Annual Income (₹)/தந்தையின் ஆண்டு வருமானம் (₹) <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3573,7 +3342,7 @@ export default function DashboardScreen() {
                         {/* Father's Employment Status */}
                         <div className="lg:col-span-2">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Father's Employment Status
+                            Father's Employment Status/தந்தையின் வேலை நிலை <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="fatherEmploymentStatus"
@@ -3593,7 +3362,7 @@ export default function DashboardScreen() {
                         {/* Mother's Name */}
                         <div className="lg:col-span-2">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Mother's Name
+                            Mother's Name/தாயின் பெயர் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3608,7 +3377,7 @@ export default function DashboardScreen() {
                         {/* Mother's Occupation */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Mother's Occupation
+                            Mother's Occupation/தாயின் தொழில் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3623,7 +3392,7 @@ export default function DashboardScreen() {
                         {/* Mother's Annual Income */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Mother's Annual Income (₹)
+                            Mother's Annual Income (₹)/தாயின் ஆண்டு வருமானம் (₹) <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3638,7 +3407,7 @@ export default function DashboardScreen() {
                         {/* Mother's Employment Status */}
                         <div className="lg:col-span-2">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Mother's Employment Status
+                            Mother's Employment Status/தாயின் வேலை நிலை <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="motherEmploymentStatus"
@@ -3658,7 +3427,7 @@ export default function DashboardScreen() {
                         {/* Total Family Annual Income */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Total Family Annual Income <span className="text-red-500">*</span>
+                            Total Family Annual Income/குடும்பத்தின் மொத்த ஆண்டு வருமானம் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3673,7 +3442,7 @@ export default function DashboardScreen() {
                         {/* Number of Family Members */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Number of Family Members
+                            Number of Family Members/குடும்ப உறுப்பினர்களின் எண்ணிக்கை <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="number"
@@ -3688,7 +3457,7 @@ export default function DashboardScreen() {
                         {/* Family Type */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Family Type
+                            Family Type/குடும்ப வகை <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="familyType"
@@ -3704,7 +3473,7 @@ export default function DashboardScreen() {
                         {/* Family Situation */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Family Situation <span className="text-red-500">*</span>
+                            Family Situation/குடும்ப சூழ்நிலை <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="familySituation"
@@ -3727,7 +3496,7 @@ export default function DashboardScreen() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div>
                               <label className="block text-xs font-heading font-bold text-black">
-                                Guardian Name
+                                Guardian Name/பாதுகாவலர் பெயர்
                               </label>
                               <input
                                 type="text"
@@ -3740,7 +3509,7 @@ export default function DashboardScreen() {
                             </div>
                             <div>
                               <label className="block text-xs font-heading font-bold text-black">
-                                Relationship to Student
+                                Relationship to Student/மாணவருடனான உறவு
                               </label>
                               <input
                                 type="text"
@@ -3753,7 +3522,7 @@ export default function DashboardScreen() {
                             </div>
                             <div>
                               <label className="block text-xs font-heading font-bold text-black">
-                                Guardian Occupation
+                                Guardian Occupation/பாதுகாவலர் தொழில்
                               </label>
                               <input
                                 type="text"
@@ -3766,7 +3535,7 @@ export default function DashboardScreen() {
                             </div>
                             <div>
                               <label className="block text-xs font-heading font-bold text-black">
-                                Guardian Annual Income (₹)
+                                Guardian Annual Income (₹)/பாதுகாவலர் ஆண்டு வருமானம் (₹)
                               </label>
                               <input
                                 type="text"
@@ -3810,7 +3579,7 @@ export default function DashboardScreen() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Total Number of Siblings
+                            Total Number of Siblings/உடன்பிறந்தோரின் மொத்த எண்ணிக்கை <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="number"
@@ -3824,7 +3593,7 @@ export default function DashboardScreen() {
 
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Number of Siblings Currently Studying
+                            Number of Siblings Currently Studying/தற்போது படிக்கும் உடன்பிறந்தோர் எண்ணிக்கை <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="number"
@@ -3836,6 +3605,12 @@ export default function DashboardScreen() {
                           />
                         </div>
                       </div>
+
+                      {getSiblingDetailsError() && (
+                        <div className="bg-red-50 border border-red-300 text-red-700 rounded-md px-3.5 py-2.5 text-xs font-semibold">
+                          {getSiblingDetailsError()}
+                        </div>
+                      )}
 
                       {siblings.length === 0 ? (
                         <div className="bg-black/5 border border-dashed border-black/15 rounded-lg p-8 text-center">
@@ -3883,7 +3658,7 @@ export default function DashboardScreen() {
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                                 <div>
                                   <label className="block text-xs font-heading font-bold text-black">
-                                    Sibling's Full Name
+                                    Sibling's Full Name/உடன்பிறந்தவரின் முழு பெயர் <span className="text-red-500">*</span>
                                   </label>
                                   <input
                                     type="text"
@@ -3896,7 +3671,7 @@ export default function DashboardScreen() {
 
                                 <div>
                                   <label className="block text-xs font-heading font-bold text-black">
-                                    Relationship
+                                    Relationship/உறவு <span className="text-red-500">*</span>
                                   </label>
                                   <select
                                     value={sibling.relationship}
@@ -3913,7 +3688,7 @@ export default function DashboardScreen() {
 
                                 <div>
                                   <label className="block text-xs font-heading font-bold text-black">
-                                    Age
+                                    Age/வயது <span className="text-red-500">*</span>
                                   </label>
                                   <input
                                     type="text"
@@ -3926,7 +3701,7 @@ export default function DashboardScreen() {
 
                                 <div>
                                   <label className="block text-xs font-heading font-bold text-black">
-                                    Sibling Education Level
+                                    Sibling Education Level/உடன்பிறந்தவரின் கல்வி நிலை <span className="text-red-500">*</span>
                                   </label>
                                   <input
                                     type="text"
@@ -3939,7 +3714,7 @@ export default function DashboardScreen() {
 
                                 <div className="sm:col-span-2">
                                   <label className="block text-xs font-heading font-bold text-black">
-                                    Sibling Occupation / Institution
+                                    Sibling Occupation / Institution/உடன்பிறந்தவரின் தொழில் / நிறுவனம் <span className="text-red-500">*</span>
                                   </label>
                                   <input
                                     type="text"
@@ -3973,7 +3748,7 @@ export default function DashboardScreen() {
                         {/* Permanent Address */}
                         <div className="sm:col-span-2 lg:col-span-3">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Permanent Address <span className="text-red-500">*</span>
+                            Permanent Address/நிரந்தர முகவரி <span className="text-red-500">*</span>
                           </label>
                           <textarea
                             name="permanentAddress"
@@ -3996,31 +3771,31 @@ export default function DashboardScreen() {
                             className="w-4 h-4 rounded text-black border-black/15"
                           />
                           <label htmlFor="sameAsPerm" className="text-xs font-bold text-black cursor-pointer">
-                            Same as permanent address
+                            Same as permanent address/நிரந்தர முகவரியே
                           </label>
                         </div>
 
                         {/* Current Residential Address */}
-                          <div className="sm:col-span-2 lg:col-span-3">
-                            <label htmlFor="current-address" className="block text-xs font-heading font-bold text-black">
-                              Current Residential Address
-                            </label>
-                            <textarea
-                              id="current-address"
-                              name="currentAddress"
-                              rows={2}
-                              value={formData.sameAsPermanent ? formData.permanentAddress : formData.currentAddress}
-                              readOnly={formData.sameAsPermanent}
-                              onChange={handleChange}
-                              placeholder="Current residence address"
-                              className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
-                            />
-                          </div>
+                        <div className="sm:col-span-2 lg:col-span-3">
+                          <label htmlFor="current-address" className="block text-xs font-heading font-bold text-black">
+                            Current Residential Address/தற்போதைய வசிப்பிட முகவரி <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            id="current-address"
+                            name="currentAddress"
+                            rows={2}
+                            value={formData.sameAsPermanent ? formData.permanentAddress : formData.currentAddress}
+                            readOnly={formData.sameAsPermanent}
+                            onChange={handleChange}
+                            placeholder="Current residence address"
+                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
+                          />
+                        </div>
 
                         {/* Village / Town */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Village / Town <span className="text-red-500">*</span>
+                            Village / Town/கிராமம் / நகரம் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4035,7 +3810,7 @@ export default function DashboardScreen() {
                         {/* District */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            District <span className="text-red-500">*</span>
+                            District/மாவட்டம் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4050,7 +3825,7 @@ export default function DashboardScreen() {
                         {/* State */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            State
+                            State/மாநிலம் <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4065,7 +3840,7 @@ export default function DashboardScreen() {
                         {/* PIN code */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            PIN Code <span className="text-red-500">*</span>
+                            PIN Code/அஞ்சல் குறியீடு <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4081,7 +3856,7 @@ export default function DashboardScreen() {
                         {/* Residence Type */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Residence Type (Own / Rented)
+                            Residence Type (Own / Rented)/வசிப்பிட வகை (சொந்தம் / வாடகை) <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="residenceType"
@@ -4098,7 +3873,7 @@ export default function DashboardScreen() {
                         {/* Monthly Rent */}
                         {formData.residenceType === "Rented" && <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Monthly Rent (₹) <span className="text-red-500">*</span>
+                            Monthly Rent (₹)/மாத வாடகை (₹) <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4134,7 +3909,7 @@ export default function DashboardScreen() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              10th School Name <span className="text-red-500">*</span>
+                              10th School Name/10ஆம் வகுப்பு பள்ளி பெயர் <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4148,7 +3923,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              10th Board
+                              10th Board/10ஆம் வகுப்பு வாரியம் <span className="text-red-500">*</span>
                             </label>
                             <select
                               name="tenthBoard"
@@ -4165,7 +3940,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              10th Passing Year
+                              10th Passing Year/10ஆம் வகுப்பு தேர்ச்சி ஆண்டு <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4218,17 +3993,17 @@ export default function DashboardScreen() {
                       <div className="bg-black/5 border border-black/15 rounded-lg p-4 sm:p-5 space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                           {[
-                            ["eleventhSchool", "11th School Name", "Enter 11th school name"],
-                            ["eleventhYear", "11th Passing Year", "e.g., 2024"],
-                            ["eleventhStream", "11th Group / Stream", "e.g., Bio-Maths / CS"],
+                            ["eleventhSchool", "11th School Name/11ஆம் வகுப்பு பள்ளி பெயர்", "Enter 11th school name"],
+                            ["eleventhYear", "11th Passing Year/11ஆம் வகுப்பு தேர்ச்சி ஆண்டு", "e.g., 2024"],
+                            ["eleventhStream", "11th Group / Stream/11ஆம் வகுப்பு பிரிவு", "e.g., Bio-Maths / CS"],
                           ].map(([name, label, placeholder]) => (
                             <div key={name}>
-                              <label className="block text-xs font-heading font-bold text-black">{label}</label>
+                              <label className="block text-xs font-heading font-bold text-black">{label} <span className="text-red-500">*</span></label>
                               <input type="text" name={name} value={formData[name as keyof typeof formData] as string} onChange={handleChange} placeholder={placeholder} className="w-full mt-1.5 bg-white border border-black/15 rounded-md px-3 py-2 text-xs sm:text-sm text-black focus:outline-none focus:border-brand" />
                             </div>
                           ))}
                           <div>
-                            <label className="block text-xs font-heading font-bold text-black">11th Board</label>
+                            <label className="block text-xs font-heading font-bold text-black">11th Board/11ஆம் வகுப்பு வாரியம் <span className="text-red-500">*</span></label>
                             <select name="eleventhBoard" value={formData.eleventhBoard} onChange={handleChange} className="w-full mt-1.5 bg-white border border-black/15 rounded-md px-3 py-2 text-xs sm:text-sm text-black focus:outline-none focus:border-brand">
                               <option value="State Board">Tamil Nadu State Board</option>
                               <option value="CBSE">CBSE</option>
@@ -4332,7 +4107,7 @@ export default function DashboardScreen() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              12th School Name <span className="text-red-500">*</span>
+                              12th School Name/12ஆம் வகுப்பு பள்ளி பெயர் <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4346,7 +4121,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              12th Passing Year
+                              12th Passing Year/12ஆம் வகுப்பு தேர்ச்சி ஆண்டு <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4360,7 +4135,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              12th Group / Stream
+                              12th Group / Stream/12ஆம் வகுப்பு பிரிவு <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4374,7 +4149,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              12th Board
+                              12th Board/12ஆம் வகுப்பு வாரியம் <span className="text-red-500">*</span>
                             </label>
                             <select
                               name="twelfthBoard"
@@ -4533,7 +4308,7 @@ export default function DashboardScreen() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              First-Generation Graduate Status
+                              First-Generation Graduate Status/முதல் தலைமுறை பட்டதாரி நிலை <span className="text-red-500">*</span>
                             </label>
                             <select
                               name="firstGraduate"
@@ -4548,7 +4323,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              Preferred Degree <span className="text-red-500">*</span>
+                              Preferred Degree/விரும்பும் பட்டப்படிப்பு <span className="text-red-500">*</span>
                             </label>
                             <select
                               name="preferredDegree"
@@ -4565,7 +4340,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              Preferred Course (1st Choice)
+                              Preferred Course (1st Choice)/விரும்பும் படிப்பு (முதல் தேர்வு) <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4579,7 +4354,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              Preferred Course (2nd Choice)
+                              Preferred Course (2nd Choice)/விரும்பும் படிப்பு (இரண்டாம் தேர்வு) <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4593,7 +4368,7 @@ export default function DashboardScreen() {
 
                           <div className="sm:col-span-2">
                             <label className="block text-xs font-heading font-bold text-black">
-                              Preferred College / Location
+                              Preferred College / Location/விரும்பும் கல்லூரி / இடம் <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4607,7 +4382,7 @@ export default function DashboardScreen() {
 
                           <div className="sm:col-span-2">
                             <label className="block text-xs font-heading font-bold text-black">
-                              Hostel Accommodation Required?
+                              Hostel Accommodation Required?/விடுதி வசதி தேவையா? <span className="text-red-500">*</span>
                             </label>
                             <select
                               name="hostelRequired"
@@ -4624,258 +4399,7 @@ export default function DashboardScreen() {
                     </div>
                   )}
 
-                  {/* ================= TAB 6: FINANCIAL INFORMATION ================= */}
-                  {activeTab === "financial" && (
-                    <div className="space-y-4">
-                      <div className="border-b border-black/15 pb-3">
-                        <h3 className="font-heading font-bold text-base text-black">
-                          Financial Information
-                        </h3>
-                        <p className="text-xs text-black/65 mt-0.5">
-                          Please provide detailed and honest disclosure of family finances and difficulties.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {/* Annual family income */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Annual Family Income <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            name="annualIncome"
-                            value={formData.annualIncome}
-                            onChange={handleChange}
-                            placeholder="e.g., ₹72,000"
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-
-                        {/* Income sources */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Income Sources
-                          </label>
-                          <input
-                            type="text"
-                            name="incomeSources"
-                            value={formData.incomeSources}
-                            onChange={handleChange}
-                            placeholder="e.g., Daily coolie work, Agriculture"
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-
-                        {/* Family debts */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Family Debts (if relevant)
-                          </label>
-                          <input
-                            type="text"
-                            name="familyDebts"
-                            value={formData.familyDebts}
-                            onChange={handleChange}
-                            placeholder="e.g., ₹1,20,000 medical/agricultural debt"
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-
-                        {/* Existing education loans */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Existing Education Loans
-                          </label>
-                          <input
-                            type="text"
-                            name="educationLoans"
-                            value={formData.educationLoans}
-                            onChange={handleChange}
-                            placeholder="e.g., None, or ₹50,000 loan for elder sibling"
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-
-                        {/* Ability to afford college expenses without support */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Ability to Afford College Expenses Without Support
-                          </label>
-                          <select
-                            name="affordabilityWithoutSupport"
-                            value={formData.affordabilityWithoutSupport || "Cannot afford at all"}
-                            onChange={handleChange}
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          >
-                            <option value="Cannot afford at all">Cannot afford at all (will have to drop out)</option>
-                            <option value="Cannot afford private college">Cannot afford private college fees or hostel</option>
-                            <option value="Only minimal support">Can manage only travel/minimal personal items</option>
-                          </select>
-                        </div>
-
-                        {/* Financial difficulties faced by the family */}
-                        <div className="sm:col-span-2 lg:col-span-3">
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Financial Difficulties Faced by the Family
-                          </label>
-                          <textarea
-                            name="financialDifficulties"
-                            rows={2}
-                            value={formData.financialDifficulties}
-                            onChange={handleChange}
-                            placeholder="Describe the economic challenges, irregular income, debts, or hardships faced by your family..."
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-
-                        {/* Why the student needs financial support */}
-                        <div className="sm:col-span-2 lg:col-span-3">
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Why the Student Needs Financial Support <span className="text-red-500">*</span>
-                          </label>
-                          <textarea
-                            name="whyNeedSupport"
-                            rows={3}
-                            value={formData.whyNeedSupport}
-                            onChange={handleChange}
-                            placeholder="Explain why Maatram Foundation's 100% free education support is critical for you to pursue higher education..."
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ================= TAB 7: PERSONAL AND BACKGROUND ================= */}
-                  {activeTab === "background" && (
-                    <div className="space-y-4">
-                      <div className="border-b border-black/15 pb-3">
-                        <h3 className="font-heading font-bold text-base text-black">
-                          Personal & Background Information
-                        </h3>
-                        <p className="text-xs text-black/65 mt-0.5">
-                          Tell us about your ambitions, special family circumstances, and future goals.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Orphan status */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Orphan Status
-                          </label>
-                          <select
-                            name="orphan"
-                            value={formData.orphan}
-                            onChange={handleChange}
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          >
-                            <option value="No">No</option>
-                            <option value="Yes">Yes (Orphan student)</option>
-                          </select>
-                        </div>
-
-                        {/* Single-parent status */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Single-Parent Status
-                          </label>
-                          <select
-                            name="singleParent"
-                            value={formData.singleParent}
-                            onChange={handleChange}
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          >
-                            <option value="No">No (Both parents alive)</option>
-                            {formData.singleParent === "Yes" && <option value="Yes">Single parent (unspecified)</option>}
-                            <option value="Single Mother">Single Parent - Mother</option>
-                            <option value="Single Father">Single Parent - Father</option>
-                          </select>
-                        </div>
-
-                        {/* First-generation learner */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            First-Generation Learner
-                          </label>
-                          <select
-                            name="firstGenerationLearner"
-                            value={formData.firstGenerationLearner}
-                            onChange={handleChange}
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          >
-                            <option value="Yes">Yes (First to attend college)</option>
-                            <option value="No">No</option>
-                          </select>
-                        </div>
-
-                        {/* Willingness to relocate anywhere in Tamil Nadu */}
-                        <div>
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Willingness to Relocate in Tamil Nadu
-                          </label>
-                          <select
-                            name="willingToRelocateTN"
-                            value={formData.willingToRelocateTN}
-                            onChange={handleChange}
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
-                          >
-                            <option value="Yes">Yes - Ready to study anywhere in TN</option>
-                            <option value="No">No - Prefer nearby colleges only</option>
-                          </select>
-                        </div>
-
-                        {/* Career ambition */}
-                        <div className="sm:col-span-2 lg:col-span-2">
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Career Ambition <span className="text-red-500">*</span>
-                          </label>
-                          <textarea
-                            name="careerAmbition"
-                            rows={2}
-                            value={formData.careerAmbition || formData.careerGoal}
-                            onChange={handleChange}
-                            placeholder="e.g., Software Engineer, IAS officer, Bank Manager, Teacher"
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-
-
-                        {/* Future goals */}
-                        <div className="sm:col-span-2 lg:col-span-2">
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Future Goals & Vision
-                          </label>
-                          <textarea
-                            name="futureGoals"
-                            rows={2}
-                            value={formData.futureGoals}
-                            onChange={handleChange}
-                            placeholder="What do you plan to achieve after graduating?"
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-
-                        {/* Special family circumstances */}
-                        <div className="sm:col-span-2 lg:col-span-2">
-                          <label className="block text-xs font-heading font-bold text-black">
-                            Special Family Circumstances (if any)
-                          </label>
-                          <textarea
-                            name="specialCircumstances"
-                            rows={2}
-                            value={formData.specialCircumstances}
-                            onChange={handleChange}
-                            placeholder="e.g., Parent's chronic illness, physical disability, natural disaster loss..."
-                            className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ================= TAB 8: DOCUMENT UPLOADS ================= */}
+                  {/* ================= TAB 6: DOCUMENT UPLOADS ================= */}
                   {activeTab === "documents" && (
                     <div className="space-y-5">
                       <div className="border-b border-black/15 pb-3">
@@ -5067,7 +4591,8 @@ export default function DashboardScreen() {
               <button
                 type="button"
                 onClick={() => setShowSubmitConfirmation(false)}
-                className="rounded-md border border-black/15 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-black/5"
+                disabled={isSubmitting}
+                className="cursor-pointer rounded-md border border-black/15 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -5075,7 +4600,7 @@ export default function DashboardScreen() {
                 type="button"
                 onClick={() => void handleFinalSubmit()}
                 disabled={isSubmitting}
-                className="rounded-md bg-brand px-4 py-2.5 text-xs font-bold text-black transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+                className="cursor-pointer rounded-md bg-brand px-4 py-2.5 text-xs font-bold text-black transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? "Submitting..." : "Confirm & Submit"}
               </button>
@@ -5100,8 +4625,6 @@ export default function DashboardScreen() {
               siblings: "Siblings",
               address: "Address",
               educational: "Educational",
-              financial: "Financial",
-              background: "Background",
               documents: "Documents",
             }[applicationFieldTabs[missingApplicationField] || "personal"]
             : undefined
