@@ -183,6 +183,7 @@ export default function DashboardScreen() {
     tenthSchoolAddress: "",
 
     eleventhSchool: "",
+    eleventhSchoolAddress: "",
     eleventhBoard: "State Board",
     eleventhYear: "",
     eleventhStream: "",
@@ -613,6 +614,7 @@ export default function DashboardScreen() {
           {hasEleventhMarks && eleventhScore.max > 0 && " (" + ((eleventhScore.total / eleventhScore.max) * 100).toFixed(1) + "%)"}
         </span>
       </div>
+      <div className="text-xs"><span className="block text-[11px] uppercase text-black/65">11th School Address</span><strong>{formData.eleventhSchoolAddress || "-"}</strong></div>
       <SubjectMarks subjects={eleventhSubjects} />
     </div>
   );
@@ -637,9 +639,9 @@ export default function DashboardScreen() {
   const isCutoffDegree = (degree: string) =>
     degree.startsWith("Engineering") || degree.startsWith("Nursing");
 
-  const getSubjectMarks = (subjects: typeof twelfthSubjects, patterns: (string | RegExp)[]) => {
+  const getSubjectMarks = (subjects: Array<(typeof twelfthSubjects)[number] & { name?: string; subject?: string; marks?: number | string; max_marks?: number | string }>, patterns: (string | RegExp)[]) => {
     const subject = subjects.find((item) => {
-      const name = item.subjectName.trim().toLowerCase();
+      const name = String(item.subjectName || item.name || item.subject || "").trim().toLowerCase();
       return patterns.some((p) => {
         if (typeof p === "string") {
           return name.includes(p.toLowerCase());
@@ -647,10 +649,11 @@ export default function DashboardScreen() {
         return p.test(name);
       });
     });
-    if (!subject || !subject.marksObtained.trim()) return null;
-    const obtained = parseFloat(subject.marksObtained);
-    const max = parseFloat(subject.maxMarks) || 100;
-    if (isNaN(obtained) || max <= 0) return null;
+    const value = String(subject?.marksObtained ?? subject?.marks ?? "").trim();
+    if (!value) return null;
+    const obtained = Number(value);
+    const max = Number(String(subject?.maxMarks ?? subject?.max_marks ?? "").trim() || "100");
+    if (!Number.isFinite(obtained) || !Number.isFinite(max) || max <= 0 || obtained < 0 || obtained > max) return null;
     // Normalize to out of 100 in case maxMarks is e.g. 200, 50, etc.
     return (obtained / max) * 100;
   };
@@ -673,8 +676,6 @@ export default function DashboardScreen() {
   };
 
   const calculateParamedicalCutoff = (subjects: typeof twelfthSubjects) => {
-    // Computer Science students do not have paramedical cutoff
-    if (isComputerScienceStudent(subjects)) return null;
 
     const physics = getSubjectMarks(subjects, [/phys/i]);
     const chemistry = getSubjectMarks(subjects, [/chem/i]);
@@ -699,6 +700,16 @@ export default function DashboardScreen() {
     if (biology === null) return "";
     return (biology + physics / 2 + chemistry / 2).toFixed(2);
   };
+
+  const cutoffSummary = (
+    <dl className="grid gap-1 text-xs">
+      {[["Engineering cutoff", calculateEngineeringCutoff(twelfthSubjects)], ["Paramedical cutoff", calculateParamedicalCutoff(twelfthSubjects)]].map(([label, score]) => (
+        <div key={label} className="flex flex-wrap items-baseline justify-between gap-x-2">
+          <dt>{label}</dt><dd className="font-mono font-bold">{score ? score + " / 200" : "Not available"}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 
   const calculateCutoff = (subjects: typeof twelfthSubjects, degree: string) => {
     if (degree.startsWith("Engineering")) {
@@ -871,6 +882,17 @@ export default function DashboardScreen() {
       }));
     }
   };
+
+  function schoolAddressField(name: "tenthSchoolAddress" | "eleventhSchoolAddress" | "twelfthSchoolAddress", grade: string) {
+    return (
+      <div className="sm:col-span-2 lg:col-span-4">
+        <label htmlFor={name} className="block text-xs font-heading font-bold text-black">{grade} School Address</label>
+        <textarea id={name} name={name} rows={2} value={formData[name]} onChange={handleChange}
+          placeholder="Street, village or town, district and PIN code"
+          className="mt-1 w-full rounded-md border border-black/15 bg-white px-3 py-2 text-xs text-black focus:border-brand focus:outline-none sm:text-sm" />
+      </div>
+    );
+  }
 
   const handleFileUpload = (fieldName: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1134,8 +1156,6 @@ export default function DashboardScreen() {
         twelfthMaxMarks: twelfth.max,
         twelfthTotalMarks: String(twelfth.total),
         twelfthPercentage: twelfth.max ? ((twelfth.total / twelfth.max) * 100).toFixed(2) : "",
-        engineeringCutoff: calculateEngineeringCutoff(twelfthSubjects),
-        paramedicalCutoff: calculateParamedicalCutoff(twelfthSubjects),
         siblings,
         tenthSubjects,
         eleventhSubjects,
@@ -1298,13 +1318,7 @@ export default function DashboardScreen() {
               </div>
 
               <div className="bg-white border border-black/15 rounded-lg p-4.5 space-y-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-black/65">12th Standard Cutoff</span>
-                <div className="flex items-center gap-2">
-                  <strong className="text-black font-mono text-base font-bold">
-                    {formData.twelfthCutoff || "—"}
-                  </strong>
-                  <span className="text-[11px] text-black/65">/ 200</span>
-                </div>
+                {cutoffSummary}
                 <p className="text-[11px] text-black/65">
                   {formData.twelfthPercentage ? `${formData.twelfthPercentage}% Score` : "Marks recorded"}
                 </p>
@@ -1848,13 +1862,7 @@ export default function DashboardScreen() {
               {/* Summary KPIs Ribbon */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div className="bg-brand/15 border border-brand/60 rounded-lg p-3.5 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-black block">12th Cutoff</span>
-                  <div className="flex items-baseline gap-1">
-                    <strong className="text-black font-heading font-bold text-lg">
-                      {formData.twelfthCutoff || "—"}
-                    </strong>
-                    <span className="text-[11px] text-black font-medium">/ 200</span>
-                  </div>
+                  {cutoffSummary}
                 </div>
 
                 <div className="bg-black/5 border border-black/15 rounded-lg p-3.5 space-y-1">
@@ -2284,9 +2292,7 @@ export default function DashboardScreen() {
                         12th Standard (HSC Plus Two)
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-black font-mono font-bold text-xs bg-brand/15 px-2.5 py-0.5 rounded-md border border-brand/60">
-                          Cutoff: {formData.twelfthCutoff || "—"} / 200
-                        </span>
+                        {cutoffSummary}
                         <span className="text-black font-mono font-bold text-xs bg-brand/15 px-2.5 py-0.5 rounded-md border border-brand/60">
                           Total: {formData.twelfthTotalMarks || calc12thTotal().total} / {calc12thTotal().max || 600}
                         </span>
@@ -2942,6 +2948,10 @@ export default function DashboardScreen() {
                           <strong className="text-black">{formData.tenthSchool || "-"}</strong>
                         </div>
                         <div>
+                          <span className="block text-[11px] uppercase text-black/65">10th School Address</span>
+                          <strong>{formData.tenthSchoolAddress || "-"}</strong>
+                        </div>
+                        <div>
                           <span className="text-[11px] text-black/65 block uppercase">10th Board</span>
                           <strong className="text-black">{formData.tenthBoard || "-"}</strong>
                         </div>
@@ -2964,13 +2974,17 @@ export default function DashboardScreen() {
                       <div className="flex items-center justify-between font-bold text-black text-xs uppercase tracking-wider border-b border-black/15 pb-1.5">
                         <span>12th Standard (HSC Plus Two)</span>
                         <span className="text-black font-mono text-xs font-bold">
-                          Total: {formData.twelfthTotalMarks || calc12thTotal().total} | Cutoff: {formData.twelfthCutoff || "-"}
+                          Total: {formData.twelfthTotalMarks || calc12thTotal().total}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                         <div>
                           <span className="text-[11px] text-black/65 block uppercase">12th School Name</span>
                           <strong className="text-black">{formData.twelfthSchool || "-"}</strong>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] uppercase text-black/65">12th School Address</span>
+                          <strong>{formData.twelfthSchoolAddress || "-"}</strong>
                         </div>
                         <div>
                           <span className="text-[11px] text-black/65 block uppercase">12th Board</span>
@@ -2986,6 +3000,7 @@ export default function DashboardScreen() {
                         </div>
                       </div>
 
+                      {cutoffSummary}
                       {/* 12th Subject Marks Table */}
                       <div className="overflow-x-auto mt-2">
                         <table className="w-full text-left text-xs border border-black/15 rounded-lg">
@@ -3963,7 +3978,7 @@ export default function DashboardScreen() {
                           <textarea
                             name="permanentAddress"
                             rows={2}
-                            value={formData.permanentAddress || formData.address}
+                            value={formData.permanentAddress}
                             onChange={handleChange}
                             placeholder="Door no., street name, village / post"
                             className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
@@ -3981,26 +3996,26 @@ export default function DashboardScreen() {
                             className="w-4 h-4 rounded text-black border-black/15"
                           />
                           <label htmlFor="sameAsPerm" className="text-xs font-bold text-black cursor-pointer">
-                            Current residential address is same as permanent address
+                            Same as permanent address
                           </label>
                         </div>
 
                         {/* Current Residential Address */}
-                        {!formData.sameAsPermanent && (
                           <div className="sm:col-span-2 lg:col-span-3">
-                            <label className="block text-xs font-heading font-bold text-black">
+                            <label htmlFor="current-address" className="block text-xs font-heading font-bold text-black">
                               Current Residential Address
                             </label>
                             <textarea
+                              id="current-address"
                               name="currentAddress"
                               rows={2}
-                              value={formData.currentAddress}
+                              value={formData.sameAsPermanent ? formData.permanentAddress : formData.currentAddress}
+                              readOnly={formData.sameAsPermanent}
                               onChange={handleChange}
                               placeholder="Current residence address"
                               className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black placeholder-black/65 focus:outline-none focus:border-brand focus:bg-white"
                             />
                           </div>
-                        )}
 
                         {/* Village / Town */}
                         <div>
@@ -4162,6 +4177,7 @@ export default function DashboardScreen() {
                             />
                           </div>
 
+                          {schoolAddressField("tenthSchoolAddress", "10th")}
                         </div>
 
                         <div className="pt-3 border-t border-black/15">
@@ -4219,6 +4235,7 @@ export default function DashboardScreen() {
                               <option value="ICSE">ICSE</option>
                             </select>
                           </div>
+                          {schoolAddressField("eleventhSchoolAddress", "11th")}
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
@@ -4370,6 +4387,7 @@ export default function DashboardScreen() {
                               <option value="ICSE / ISC">ICSE / ISC</option>
                             </select>
                           </div>
+                          {schoolAddressField("twelfthSchoolAddress", "12th")}
                         </div>
 
                         {/* Subject-wise marks */}
