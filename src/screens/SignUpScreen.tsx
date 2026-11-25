@@ -34,7 +34,22 @@ export default function SignUpScreen() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [pending, setPending] = useState<PendingSignup | null>(null);
-  const [code, setCode] = useState("");
+  const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
+  const code = digits.join("");
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const [sending, setSending] = useState(false);
+
+  function enterDigits(index: number, value: string) {
+    const numbers = value.replace(/\D/g, "").slice(0, 6);
+    if (value && !numbers) return;
+    const start = numbers.length === 6 ? 0 : index;
+    setDigits(previous => {
+      const next = [...previous];
+      next.splice(start, numbers.length || 1, ...(numbers ? numbers.split("") : [""]));
+      return next.slice(0, 6);
+    });
+    if (numbers) inputs.current[Math.min(start + numbers.length, 5)]?.focus();
+  }
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [resending, setResending] = useState(false);
   const [notice, setNotice] = useState("");
@@ -57,7 +72,7 @@ export default function SignUpScreen() {
       if (now >= pending.expiresAt) {
         sessionStorage.removeItem(pendingKey);
         setPending(null);
-        setCode("");
+        setDigits(Array(6).fill(""));
         setNotice("");
         setErrorMessage("Your code expired. Submit your registration details to get a new one.");
       }
@@ -82,7 +97,8 @@ export default function SignUpScreen() {
       const result = await authApi.sendOtp({ type: "signup", channel: "email", email: pending.email, challengeId: pending.challengeId });
       if (!result.success) throw new Error(result.message || "Could not resend the code.");
       savePending({ ...pending, sentAt: Date.now() });
-      setCode("");
+      setDigits(Array(6).fill(""));
+      inputs.current[0]?.focus();
       setNotice("A new code has been sent. Use the latest email.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not resend the code.");
@@ -144,9 +160,13 @@ export default function SignUpScreen() {
 
     setIsSubmitting(true);
     try {
+      setSending(true);
+      setDigits(Array(6).fill(""));
+      const retry = Boolean(signupAttempt.current);
       signupAttempt.current ??= crypto.randomUUID();
       const res = await authApi.signup({
         challengeId: signupAttempt.current,
+        retry,
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
         mobileNumber: formData.mobileNumber.trim(),
@@ -168,6 +188,7 @@ export default function SignUpScreen() {
       console.error("SignUp error:", err);
       setErrorMessage(err.message || "An unexpected error occurred. Please try again.");
     } finally {
+      setSending(false);
       setIsSubmitting(false);
     }
   };
@@ -198,7 +219,7 @@ export default function SignUpScreen() {
           Student Registration
         </h1>
         <p className="font-primary text-xs sm:text-sm text-black leading-relaxed mt-1.5 text-center">
-          {pending ? <>Enter the six-digit code for <strong>{pending.email}</strong>.</> : "Create your student account to apply for higher education support."}
+          {pending || sending ? <>Enter the six-digit code for <strong>{pending?.email || formData.email.trim()}</strong>.</> : "Create your student account to apply for higher education support."}
         </p>
 
         {errorMessage && (
@@ -207,26 +228,53 @@ export default function SignUpScreen() {
           </div>
         )}
 
-        {pending ? (
+        {pending || sending ? (
           <form onSubmit={verifyCode} className="mt-5 space-y-4">
-            <label htmlFor="signup-code" className="block text-sm font-heading font-bold">Email verification code</label>
-            <input id="signup-code" type="text" inputMode="numeric" autoComplete="one-time-code"
-              autoFocus required maxLength={6} pattern="[0-9]{6}" value={code}
-              onChange={event => setCode(event.target.value.replace(/\D/g, ""))}
-              className="w-full rounded-md border border-black/20 px-4 py-3 font-mono tracking-widest focus:outline-brand" />
+            <fieldset>
+              <legend className="text-sm font-heading font-bold">Email verification code</legend>
+              <div className="mt-2 grid grid-cols-6 gap-2">
+                {digits.map((digit, index) => (
+                  <input key={index} ref={el => { inputs.current[index] = el; }}
+                    type="text" inputMode="numeric" pattern="[0-9]" required
+                    aria-label={`Digit ${index + 1} of 6`}
+                    autoComplete={index === 0 ? "one-time-code" : "off"} autoFocus={index === 0}
+                    value={digit} onFocus={event => event.target.select()}
+                    onChange={event => enterDigits(index, event.target.value)}
+                    onPaste={event => {
+                      event.preventDefault();
+                      enterDigits(index, event.clipboardData.getData("text"));
+                    }}
+                    onKeyDown={event => {
+                      if (/^[0-9]$/.test(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                        event.preventDefault();
+                        enterDigits(index, event.key);
+                      } else if (event.key === "Backspace" && !digit && index > 0) {
+                        event.preventDefault();
+                        enterDigits(index - 1, "");
+                        inputs.current[index - 1]?.focus();
+                      } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                        event.preventDefault();
+                        inputs.current[index + (event.key === "ArrowLeft" ? -1 : 1)]?.focus();
+                      }
+                    }}
+                    className="min-w-0 h-12 w-full rounded-md border border-black/25 text-center font-mono text-xl focus:outline-brand" />
+                ))}
+              </div>
+            </fieldset>
+            {sending && <p role="status" className="text-sm">Requesting your verification email…</p>}
             {notice && <p role="status" className="text-sm">{notice}</p>}
             <button type="submit" disabled={code.length !== 6 || isSubmitting || resending}
               className="w-full rounded-md bg-brand py-3 font-heading font-bold disabled:opacity-60">
-              {isSubmitting ? "Verifying?" : "Verify and create account"}
+              {sending ? "Requesting code…" : isSubmitting ? "Verifying…" : "Verify and create account"}
             </button>
             <div className="flex flex-wrap justify-between gap-3 text-sm">
               <button type="button" disabled={isSubmitting || resending} className="underline"
                 onClick={() => {
                   signupAttempt.current = null;
                   sessionStorage.removeItem(pendingKey);
-                  setFormData(previous => ({ ...previous, email: pending.email }));
+                  if (pending) setFormData(previous => ({ ...previous, email: pending.email }));
                   setPending(null);
-                  setCode("");
+                  setDigits(Array(6).fill(""));
                   setErrorMessage("");
                   setNotice("");
                 }}>Edit registration details</button>

@@ -28,6 +28,7 @@ export default function StudentSidebar({
   studentName = "Student",
   studentPhoto = "",
 }: StudentSidebarProps) {
+  const [failedPhoto, setFailedPhoto] = React.useState("");
   const navItems = [
     {
       id: "dashboard" as StudentNavTab,
@@ -124,12 +125,13 @@ export default function StudentSidebar({
             <span className="absolute right-0 top-0 bottom-0 w-[3px] bg-[#F7BC0F] rounded-l" />
           )}
 
-          {studentPhoto ? (
+          {studentPhoto && studentPhoto !== failedPhoto ? (
             <div className={`w-6 h-6 rounded-full overflow-hidden border transition-transform duration-200 group-hover:scale-110 ${
               activeTab === "profile" ? "border-amber-700 ring-2 ring-[#F7BC0F]/40" : "border-slate-300"
             }`}>
               <img
                 src={studentPhoto}
+                onError={() => setFailedPhoto(studentPhoto)}
                 alt={studentName}
                 className="w-full h-full object-cover"
               />

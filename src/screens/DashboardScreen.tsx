@@ -69,6 +69,25 @@ function getDraftOwnerKey() {
   }
 }
 
+function SubjectMarks({ subjects }: { subjects: { id: string; subjectName: string; marksObtained: string; maxMarks: string }[] }) {
+  const recorded = subjects.filter(subject => String(subject.marksObtained ?? "").trim() !== "");
+  if (!recorded.length) return <p className="text-xs text-black/65">No subject marks recorded.</p>;
+  return (
+    <table className="w-full text-left text-xs">
+      <thead className="bg-black/5"><tr>
+        <th className="p-2">Subject</th><th className="p-2 text-right">Marks obtained</th><th className="p-2 text-right">Max marks</th>
+      </tr></thead>
+      <tbody className="divide-y divide-black/15">{recorded.map((subject, index) => (
+        <tr key={subject.id || index}>
+          <td className="p-2">{subject.subjectName || "Subject " + (index + 1)}</td>
+          <td className="p-2 text-right font-bold">{subject.marksObtained}</td>
+          <td className="p-2 text-right">{subject.maxMarks}</td>
+        </tr>
+      ))}</tbody>
+    </table>
+  );
+}
+
 export default function DashboardScreen() {
   useAdmissionHandoff();
   const router = useRouter();
@@ -268,7 +287,8 @@ export default function DashboardScreen() {
     "affordabilityWithoutSupport",
     "financialDifficulties",
     "whyNeedSupport",
-    "careerAmbition",    "futureGoals",
+    "careerAmbition",
+    "futureGoals",
     "specialCircumstances",
   ] as const;
 
@@ -582,6 +602,24 @@ export default function DashboardScreen() {
     const max = twelfthSubjects.reduce((acc, curr) => acc + (parseFloat(curr.maxMarks) || 0), 0);
     return { total, max };
   };
+
+  const eleventhScore = calc11thTotal();
+  const hasEleventhMarks = eleventhSubjects.some(subject => String(subject.marksObtained ?? "").trim() !== "");
+  const eleventhSummary = (
+    <div className="bg-white p-4 sm:p-5 rounded-md border border-black/15 space-y-3">
+      <div className="flex items-center justify-between font-bold text-black text-xs uppercase tracking-wider border-b border-black/15 pb-2">
+        <span className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-black" />
+          11th Standard (HSC Plus One)
+        </span>
+        <span className="text-black font-mono font-bold text-xs bg-brand/15 px-2.5 py-0.5 rounded-md border border-brand/60">
+          Total: {hasEleventhMarks ? eleventhScore.total + " / " + eleventhScore.max : formData.eleventhTotalMarks || "-"}
+          {hasEleventhMarks && eleventhScore.max > 0 && " (" + ((eleventhScore.total / eleventhScore.max) * 100).toFixed(1) + "%)"}
+        </span>
+      </div>
+      <SubjectMarks subjects={eleventhSubjects} />
+    </div>
+  );
 
   const getCalculatedEducationValue = (field: string) => {
     const tenth = calcTenthTotal();
@@ -900,7 +938,9 @@ export default function DashboardScreen() {
         const res = await applicationApi.getMyApplication();
         const application = res.success ? res.data : null;
         if (redirectAdmittedApplicant(application?.status)) return;
-        const userProfile = storedUser || {};
+        const submitted = application?.status && application.status !== "draft";
+        if (submitted) localDraft = null;
+        const userProfile = submitted ? {} : storedUser || {};
         const nonEmptyDraftData = Object.fromEntries(
           Object.entries(localDraft?.formData || {}).filter(
             ([, value]) => value !== "" && value !== null && value !== undefined
@@ -945,9 +985,9 @@ export default function DashboardScreen() {
         if (res.success && res.data) {
           const d = res.data;
           if (!localDraft?.siblings && d.siblings && d.siblings.length > 0) setSiblings(d.siblings);
-          if (!localDraft?.eleventhSubjects && d.eleventhSubjects && d.eleventhSubjects.length > 0) setEleventhSubjects(d.eleventhSubjects);
+          if (Array.isArray(d.eleventhSubjects) && d.eleventhSubjects.length && (d.status !== "draft" || !localDraft?.eleventhSubjects)) setEleventhSubjects(d.eleventhSubjects);
           if (!localDraft?.twelfthSubjects && d.twelfthSubjects && d.twelfthSubjects.length > 0) setTwelfthSubjects(d.twelfthSubjects);
-          if (!localDraft?.tenthSubjects && d.tenthSubjects && d.tenthSubjects.length > 0) setTenthSubjects(d.tenthSubjects);
+          if (Array.isArray(d.tenthSubjects) && d.tenthSubjects.length && (d.status !== "draft" || !localDraft?.tenthSubjects)) setTenthSubjects(d.tenthSubjects);
           const owner = getDraftOwnerKey();
           if (d.status && d.status !== "draft") {
             setIsSubmitted(true);
@@ -1084,8 +1124,22 @@ export default function DashboardScreen() {
     setShowSubmitConfirmation(false);
     setIsSubmitting(true);
     try {
+      const tenth = calcTenthTotal();
+      const eleventh = calc11thTotal();
+      const twelfth = calc12thTotal();
       const res = await applicationApi.submitApplication({
         ...formData,
+        tenthMaxMarks: tenth.max,
+        tenthTotalMarks: String(tenth.total),
+        tenthPercentage: tenth.max ? ((tenth.total / tenth.max) * 100).toFixed(2) : "",
+        eleventhMaxMarks: eleventh.max,
+        eleventhTotalMarks: String(eleventh.total),
+        eleventhPercentage: eleventh.max ? ((eleventh.total / eleventh.max) * 100).toFixed(2) : "",
+        twelfthMaxMarks: twelfth.max,
+        twelfthTotalMarks: String(twelfth.total),
+        twelfthPercentage: twelfth.max ? ((twelfth.total / twelfth.max) * 100).toFixed(2) : "",
+        engineeringCutoff: calculateEngineeringCutoff(twelfthSubjects),
+        paramedicalCutoff: calculateParamedicalCutoff(twelfthSubjects),
         siblings,
         tenthSubjects,
         eleventhSubjects,
@@ -1157,9 +1211,6 @@ export default function DashboardScreen() {
                       : "Student Dashboard"}
                   </span>
                 </div>
-                <span className="text-[11px] text-black/65 font-primary hidden sm:inline">
-                  Maatram Foundation • 100% Free Higher Education Sponsorship
-                </span>
               </div>
             </div>
 
@@ -1783,8 +1834,7 @@ export default function DashboardScreen() {
                   </div>
                 </div>
 
-                {/* Quick Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2.5">
+                {!isSubmitted && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1793,30 +1843,10 @@ export default function DashboardScreen() {
                     }}
                     className="px-4 py-2 bg-brand hover:brightness-95 text-black font-heading font-bold text-xs rounded-md transition cursor-pointer flex items-center gap-1.5"
                   >
-                    {isSubmitted ? (
-                      <>
-                        <ArrowRightIcon className="w-4 h-4 stroke-[2.5] rotate-180" />
-                        <span>Back to Selection Process</span>
-                      </>
-                    ) : (
-                      <>
-                        <PencilSquareIcon className="w-4 h-4 stroke-[2.5]" />
-                        <span>Edit Application</span>
-                      </>
-                    )}
+                    <PencilSquareIcon className="w-4 h-4 stroke-[2.5]" />
+                    <span>Edit Application</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsReviewOpen(true);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    className="px-4 py-2 bg-black/5 hover:bg-black/10 text-black font-heading font-bold text-xs rounded-md transition cursor-pointer flex items-center gap-1.5"
-                  >
-                    <EyeIcon className="w-4 h-4 text-black" />
-                    <span>Full Document View</span>
-                  </button>
-                </div>
+                )}
               </div>
 
               {/* Summary KPIs Ribbon */}
@@ -2249,44 +2279,10 @@ export default function DashboardScreen() {
                         <strong className="text-black">{formData.tenthSchoolAddress || "—"}</strong>
                       </div>
                     </div>
+                    <SubjectMarks subjects={tenthSubjects} />
                   </div>
 
-                  {/* 11th Standard Summary & Mark Table */}
-                  <div className="bg-white p-4 sm:p-5 rounded-md border border-black/15 space-y-3">
-                    <div className="flex items-center justify-between font-bold text-black text-xs uppercase tracking-wider border-b border-black/15 pb-2">
-                      <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-black" />
-                        11th Standard (HSC Plus One)
-                      </span>
-                      <span className="text-black font-mono font-bold text-xs bg-brand/15 px-2.5 py-0.5 rounded-md border border-brand/60">
-                        Total: {calc11thTotal().total} / {calc11thTotal().max} {calc11thTotal().max > 0 ? `(${((calc11thTotal().total / calc11thTotal().max) * 100).toFixed(1)}%)` : ""}
-                      </span>
-                    </div>
-                    {eleventhSubjects.length > 0 && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border border-black/15 rounded-lg overflow-hidden">
-                          <thead className="bg-black/5 text-black font-bold uppercase text-[11px]">
-                            <tr>
-                              <th className="py-2.5 px-3">Subject Name</th>
-                              <th className="py-2.5 px-3 text-center w-28">Max Marks</th>
-                              <th className="py-2.5 px-3 text-center w-36">Marks Obtained</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-black/15">
-                            {eleventhSubjects.map((sub, i) => (
-                              <tr key={sub.id || i} className="hover:bg-black/5">
-                                <td className="py-2 px-3 text-black font-medium">
-                                  {sub.subjectName || `Subject ${i + 1}`}
-                                </td>
-                                <td className="py-2 px-3 text-center text-black/65">{sub.maxMarks}</td>
-                                <td className="py-2 px-3 text-center font-bold text-black">{sub.marksObtained || "—"}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
+                  {eleventhSummary}
 
                   {/* 12th Standard Summary & Mark Table */}
                   <div className="bg-white p-4 sm:p-5 rounded-md border border-black/15 space-y-4">
@@ -2603,42 +2599,6 @@ export default function DashboardScreen() {
                         <CheckIcon className="inline-block h-[1em] w-[1em] align-[-0.125em]" aria-hidden="true" /> Declared and Agreed by Applicant
                       </span>
                     </div>
-                  </div>
-                </div>
-
-                {/* Account & Session Actions Bottom Bar */}
-                <div className="pt-4 border-t border-black/15 flex flex-wrap items-center justify-between gap-4">
-                  <div className="text-xs text-black/65 font-medium">
-                    All application details are securely synchronized with Maatram Foundation admission portal.
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudentNavTab("dashboard");
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="px-5 py-2.5 bg-brand hover:brightness-95 text-black font-heading font-bold text-xs rounded-md transition cursor-pointer"
-                    >
-                      {isSubmitted ? "Back to Selection Process" : "Open Application Form"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsReviewOpen(true);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="px-4 py-2.5 bg-black/5 hover:bg-black/10 text-black font-heading font-bold text-xs rounded-md border border-black/15 transition cursor-pointer"
-                    >
-                      Print / Review Form
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowSignOutModal(true)}
-                      className="px-4 py-2.5 bg-brand/15 hover:bg-brand/15 text-black font-heading font-bold text-xs rounded-md border border-brand/60 transition cursor-pointer"
-                    >
-                      Sign Out
-                    </button>
                   </div>
                 </div>
 
@@ -3002,7 +2962,10 @@ export default function DashboardScreen() {
                           <strong className="text-black">{formData.tenthPercentage || "-"}%</strong>
                         </div>
                       </div>
+                      <SubjectMarks subjects={tenthSubjects} />
                     </div>
+
+                  {eleventhSummary}
 
                     {/* 12th Standard Summary & Mark Table */}
                     <div className="bg-white p-4 rounded-md border border-black/15 space-y-3">
@@ -3379,7 +3342,7 @@ export default function DashboardScreen() {
                         {/* Student Full Name */}
                         <div className="sm:col-span-2 lg:col-span-3">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Student Full Name <span className="text-black/65">*</span> (as in 10th / 12th certificate)
+                            Student Full Name <span className="text-red-500">*</span> (as in 10th / 12th certificate)
                           </label>
                           <input
                             type="text"
@@ -3395,7 +3358,7 @@ export default function DashboardScreen() {
                         {/* Date of Birth */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Date of Birth <span className="text-black/65">*</span>
+                            Date of Birth <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="date"
@@ -3409,7 +3372,7 @@ export default function DashboardScreen() {
                         {/* Gender */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Gender <span className="text-black/65">*</span>
+                            Gender <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="gender"
@@ -3442,7 +3405,7 @@ export default function DashboardScreen() {
                         {/* Mobile Number */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Mobile Number <span className="text-black/65">*</span>
+                            Mobile Number <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="tel"
@@ -3472,7 +3435,7 @@ export default function DashboardScreen() {
                         {/* Email Address */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Email Address <span className="text-black/65">*</span>
+                            Email Address <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="email"
@@ -3503,7 +3466,7 @@ export default function DashboardScreen() {
                         {/* Community / Category */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Community / Category <span className="text-black/65">*</span>
+                            Community / Category <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="community"
@@ -3688,7 +3651,7 @@ export default function DashboardScreen() {
                         {/* Total Family Annual Income */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Total Family Annual Income <span className="text-black/65">*</span>
+                            Total Family Annual Income <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -3734,7 +3697,7 @@ export default function DashboardScreen() {
                         {/* Family Situation */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Family Situation <span className="text-black/65">*</span>
+                            Family Situation <span className="text-red-500">*</span>
                           </label>
                           <select
                             name="familySituation"
@@ -4003,7 +3966,7 @@ export default function DashboardScreen() {
                         {/* Permanent Address */}
                         <div className="sm:col-span-2 lg:col-span-3">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Permanent Address <span className="text-black/65">*</span>
+                            Permanent Address <span className="text-red-500">*</span>
                           </label>
                           <textarea
                             name="permanentAddress"
@@ -4050,7 +4013,7 @@ export default function DashboardScreen() {
                         {/* Village / Town */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Village / Town <span className="text-black/65">*</span>
+                            Village / Town <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4065,7 +4028,7 @@ export default function DashboardScreen() {
                         {/* District */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            District <span className="text-black/65">*</span>
+                            District <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4095,7 +4058,7 @@ export default function DashboardScreen() {
                         {/* PIN code */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            PIN Code <span className="text-black/65">*</span>
+                            PIN Code <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4128,7 +4091,7 @@ export default function DashboardScreen() {
                         {/* Monthly Rent */}
                         {formData.residenceType === "Rented" && <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Monthly Rent (₹) <span className="text-black/65">*</span>
+                            Monthly Rent (₹) <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4164,7 +4127,7 @@ export default function DashboardScreen() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              10th School Name <span className="text-black/65">*</span>
+                              10th School Name <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4360,7 +4323,7 @@ export default function DashboardScreen() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              12th School Name <span className="text-black/65">*</span>
+                              12th School Name <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -4575,7 +4538,7 @@ export default function DashboardScreen() {
 
                           <div>
                             <label className="block text-xs font-heading font-bold text-black">
-                              Preferred Degree <span className="text-black/65">*</span>
+                              Preferred Degree <span className="text-red-500">*</span>
                             </label>
                             <select
                               name="preferredDegree"
@@ -4667,7 +4630,7 @@ export default function DashboardScreen() {
                         {/* Annual family income */}
                         <div>
                           <label className="block text-xs font-heading font-bold text-black">
-                            Annual Family Income <span className="text-black/65">*</span>
+                            Annual Family Income <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -4759,7 +4722,7 @@ export default function DashboardScreen() {
                         {/* Why the student needs financial support */}
                         <div className="sm:col-span-2 lg:col-span-3">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Why the Student Needs Financial Support <span className="text-black/65">*</span>
+                            Why the Student Needs Financial Support <span className="text-red-500">*</span>
                           </label>
                           <textarea
                             name="whyNeedSupport"
@@ -4815,6 +4778,7 @@ export default function DashboardScreen() {
                             className="w-full mt-1.5 bg-black/5 border border-black/15 rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-black focus:outline-none focus:border-brand focus:bg-white"
                           >
                             <option value="No">No (Both parents alive)</option>
+                            {formData.singleParent === "Yes" && <option value="Yes">Single parent (unspecified)</option>}
                             <option value="Single Mother">Single Parent - Mother</option>
                             <option value="Single Father">Single Parent - Father</option>
                           </select>
@@ -4855,7 +4819,7 @@ export default function DashboardScreen() {
                         {/* Career ambition */}
                         <div className="sm:col-span-2 lg:col-span-2">
                           <label className="block text-xs font-heading font-bold text-black">
-                            Career Ambition <span className="text-black/65">*</span>
+                            Career Ambition <span className="text-red-500">*</span>
                           </label>
                           <textarea
                             name="careerAmbition"

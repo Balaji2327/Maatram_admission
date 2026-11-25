@@ -4,11 +4,14 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "ax
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const API_BASE_URL = rawApiUrl.replace(/\/+$/, "").replace(/\/api$/, "");
 
-// Render stored application media through this portal, including URLs saved by older backends.
+// Use the same backend as the portal's API calls, even for URLs saved on localhost.
 export function applicationMediaUrl(value: string): string {
-  const match = value.match(/^(?:https?:\/\/[^/?#]+)?(?:\/backend)?\/admin\/media\/(applications\/.+)$/i);
-  if (match) return "/backend/admin/media/" + match[1];
-  return value.startsWith("applications/") ? "/backend/admin/media/" + value : value;
+  if (!value || /^(?:data:|blob:)/i.test(value)) return value;
+  const match = value.match(/^(?:https?:\/\/[^/?#]+)?(?:\/(?:api|backend))?\/admin\/media\/(applications\/[^?#]+)(?:[?#].*)?$/i)
+    || value.match(/^\/?(applications\/[^?#]+)$/);
+  if (!match) return value;
+  const mediaBase = process.env.NEXT_PUBLIC_API_URL ? API_BASE_URL : "/backend";
+  return mediaBase + "/admin/media/" + match[1];
 }
 
 // Token & User storage helpers
@@ -125,6 +128,7 @@ export const authApi = {
     mobileNumber: string;
     password: string;
     confirmPassword: string;
+    retry?: boolean;
     challengeId?: string;
   }): Promise<ApiResponse> => {
     return callApi(() => apiClient.post("/auth/signup", payload, { timeout: 90000 }));
