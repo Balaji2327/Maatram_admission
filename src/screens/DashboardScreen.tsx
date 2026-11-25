@@ -225,12 +225,8 @@ export default function DashboardScreen() {
     // H. Document Uploads
     studentPhoto: "",
     document10thMarksheet: "",
-    document11thMarksheet: "",
     document12thMarksheet: "",
-    documentCommunityCertificate: "",
-    documentIncomeCertificate: "",
     documentAadhaarCard: "",
-    documentParentIdProof: "",
 
     // Declaration
     declarationAgreed: false,
@@ -1907,13 +1903,9 @@ export default function DashboardScreen() {
                     {[
                       formData.studentPhoto,
                       formData.document10thMarksheet,
-                      formData.document11thMarksheet,
                       formData.document12thMarksheet,
-                      formData.documentCommunityCertificate,
-                      formData.documentIncomeCertificate,
                       formData.documentAadhaarCard,
-                      formData.documentParentIdProof,
-                    ].filter(Boolean).length} / 8
+                    ].filter(Boolean).length} / 4
                   </strong>
                   <span className="text-[10px] text-black block">Proofs Uploaded</span>
                 </div>
@@ -2500,7 +2492,7 @@ export default function DashboardScreen() {
                   <div className="flex items-center justify-between border-b border-black/15 pb-3">
                     <h3 className="font-heading font-bold text-sm uppercase tracking-wider text-black flex items-center gap-2">
                       <DocumentTextIcon className="w-4 h-4 text-brand" />
-                      Uploaded Documents & Certificates (8 Documents)
+                      Uploaded Documents
                     </h3>
                     <button
                       type="button"
