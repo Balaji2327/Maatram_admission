@@ -1781,7 +1781,7 @@ export default function DashboardScreen() {
                 <div className="flex items-center gap-4 sm:gap-5">
                   {/* Student Photo Thumbnail / Avatar */}
                   <div className="relative group cursor-pointer" onClick={() => formData.studentPhoto && setPreviewDocModal({ isOpen: true, title: "Student Photograph", url: formData.studentPhoto })}>
-                    <div className="w-20 h-20 rounded-lg bg-brand text-black font-heading font-bold text-2xl flex items-center justify-center shadow-sm border-2 border-brand/60 overflow-hidden shrink-0">
+                    <div className="w-20 h-20 rounded-full bg-black/5 text-black font-heading font-bold text-2xl flex items-center justify-center border border-black/15 overflow-hidden shrink-0">
                       {formData.studentPhoto ? (
                         <img
                           src={applicationMediaUrl(formData.studentPhoto)}
